@@ -1626,13 +1626,15 @@ html, body, #root {
   overflow: hidden;
 }
 
-/* Flex layer — wraps the actual photo+info layout inside the profile container */
+/* Page layer — wraps a participant profile so the page-flip animation
+   can clip / rotate it as a single rectangle. */
 .dp-page-layer {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: flex;
+  background: var(--bg);
   z-index: 1;
 }
 .dp-page-old {
@@ -2659,6 +2661,124 @@ html, body, #root {
   font-size: 1rem;
   color: var(--accent);
   flex-shrink: 0;
+}
+
+/* ── Swipeable participant profile (full-screen) ─────────────── */
+.dp-swipe-view {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 30;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Stable header (does NOT participate in the page-flip) */
+.dp-swipe-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 50;
+  flex-shrink: 0;
+}
+.dp-swipe-back-btn {
+  position: static;
+  top: auto;
+  left: auto;
+  flex-shrink: 0;
+}
+.dp-swipe-counter {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.dp-swipe-search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 640px;
+  display: flex;
+  align-items: center;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0 14px;
+  transition: border-color 0.15s;
+}
+.dp-swipe-search-wrap:focus-within {
+  border-color: var(--accent);
+}
+.dp-swipe-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 0.95rem;
+  padding: 10px 6px;
+}
+.dp-swipe-search-input::placeholder { color: rgba(255,255,255,0.3); }
+.dp-swipe-search-results {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  padding: 10px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Flip area: middle slab where the 3D page-flip happens */
+.dp-swipe-flip-area {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+.dp-swipe-profile {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+/* Floating Previous / Next buttons — sit on top of the profile, no footer */
+.dp-swipe-prev-btn,
+.dp-swipe-next-btn {
+  position: absolute;
+  bottom: 28px;
+  z-index: 5;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+}
+.dp-swipe-prev-btn { left: 28px; }
+.dp-swipe-next-btn { right: 28px; }
+
+@media (max-width: 720px) {
+  .dp-swipe-counter { font-size: 0.85rem; gap: 6px; }
+  .dp-swipe-prev-btn,
+  .dp-swipe-next-btn {
+    bottom: 16px;
+    padding: 10px 18px;
+    font-size: 0.85rem;
+  }
+  .dp-swipe-prev-btn { left: 16px; }
+  .dp-swipe-next-btn { right: 16px; }
 }
 
 /* ── Participant nav buttons (bottom corners) ────────────────── */

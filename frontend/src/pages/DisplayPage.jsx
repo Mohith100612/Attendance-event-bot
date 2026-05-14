@@ -240,63 +240,160 @@ function mergeRemoteResult(r, localById) {
   }
 }
 
-/* ── Participant detail modal ──────────────────────────────────── */
-function ParticipantDetailModal({ person, onClose }) {
+/* ── Profile body (shared by swipe view) ───────────────────────── */
+function ProfileBody({ person: p }) {
+  return (
+    <>
+      <div className="dp-modal-body">
+        <div className="dp-modal-left">
+          <UserAvatar src={p.image_url} name={p.name} imgClass="dp-modal-img" fallbackClass="dp-modal-img-fallback" apiBase={API_BASE}>
+            {p.name?.[0]?.toUpperCase()}
+          </UserAvatar>
+          <div className="dp-modal-name">{p.name}</div>
+          {p.company && <div className="dp-modal-company">{p.company}</div>}
+          {p.occupation && <div className="dp-modal-occ">{p.occupation}</div>}
+          <div className="dp-badge dp-badge--present dp-modal-badge">✓ Checked In</div>
+        </div>
+
+        <div className="dp-modal-right">
+          <div className="dp-modal-details">
+            {p.email    && <div className="dp-modal-row"><span className="dp-modal-icon">✉</span><span>{p.email}</span></div>}
+            {p.phone    && <div className="dp-modal-row"><span className="dp-modal-icon">📞</span><span>{p.phone}</span></div>}
+            {p.linkedin && (
+              <div className="dp-modal-row">
+                <span className="dp-modal-icon">🔗</span>
+                <a href={p.linkedin} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', color: 'inherit' }}>{p.linkedin}</a>
+              </div>
+            )}
+            {p.industry && <div className="dp-modal-row"><span className="dp-modal-icon">🏷</span><span>{p.industry}</span></div>}
+            {p.website  && (
+              <div className="dp-modal-row">
+                <span className="dp-modal-icon">🌐</span>
+                <a href={p.website} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', color: 'inherit' }}>{p.website}</a>
+              </div>
+            )}
+            {p.checked_in_at && (
+              <div className="dp-modal-row">
+                <span className="dp-modal-icon">🕐</span>
+                <span>{new Date(p.checked_in_at + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {p.business_description && (
+        <div className="dp-modal-bio dp-modal-business">
+          <div className="dp-modal-bio-label">Company description</div>
+          <div className="dp-modal-bio-text">{p.business_description}</div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ── Search overlay (used inside swipe view) ───────────────────── */
+function ParticipantSearch({ participants, onClose, onSelect }) {
+  const [query, setQuery]     = useState('')
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(false)
+  const inputRef  = useRef(null)
+  const timerRef  = useRef(null)
+  const abortRef  = useRef(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  if (!person) return null
-  const p = person
+  const runSearch = (q) => {
+    if (!q.trim()) { setResults([]); return }
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setLoading(true)
+    searchRemote(q, ctrl.signal)
+      .then(arr => {
+        const byId = new Map(participants.map(p => [String(p.id), p]))
+        setResults(arr.map(r => mergeRemoteResult(r, byId)))
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return
+        setResults(searchLocally(participants, q))
+      })
+      .finally(() => setLoading(false))
+  }
+
+  const handleInput = (e) => {
+    const val = e.target.value
+    setQuery(val)
+    clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => runSearch(val), 280)
+  }
+
+  const HINTS = ['Cyber Security', 'Data Scientist', 'AI Engineer', 'Product Manager', 'Full Stack Developer', 'DevOps', 'Mobile Developer', 'Designer']
+
   return (
-    <div className="dp-modal-overlay" onClick={onClose}>
-      <div className="dp-modal" onClick={e => e.stopPropagation()}>
-        <button className="dp-modal-close" onClick={onClose} aria-label="Close">×</button>
+    <div className="dp-search-overlay">
+      <div className="dp-search-header">
+        <button className="dp-search-back" onClick={onClose}>← Back</button>
+        <div className="dp-search-input-wrap">
+          <span className="dp-search-icon-prefix">🔍</span>
+          <input
+            ref={inputRef}
+            className="dp-search-input"
+            placeholder="Search by role, skill or field…"
+            value={query}
+            onChange={handleInput}
+            autoComplete="off"
+            spellCheck="false"
+          />
+          {loading && <span className="dp-dir-spinner" />}
+          {query && !loading && (
+            <button className="dp-search-clear"
+              onClick={() => { setQuery(''); setResults([]); inputRef.current?.focus() }}>✕</button>
+          )}
+        </div>
+      </div>
 
-        <div className="dp-modal-body">
-          <div className="dp-modal-left">
-            <UserAvatar src={p.image_url} name={p.name} imgClass="dp-modal-img" fallbackClass="dp-modal-img-fallback" apiBase={API_BASE}>
-              {p.name?.[0]?.toUpperCase()}
-            </UserAvatar>
-            <div className="dp-modal-name">{p.name}</div>
-            {p.company && <div className="dp-modal-company">{p.company}</div>}
-            {p.occupation && <div className="dp-modal-occ">{p.occupation}</div>}
-            <div className="dp-badge dp-badge--present dp-modal-badge">✓ Checked In</div>
-          </div>
-
-          <div className="dp-modal-right">
-            <div className="dp-modal-details">
-              {p.email    && <div className="dp-modal-row"><span className="dp-modal-icon">✉</span><span>{p.email}</span></div>}
-              {p.phone    && <div className="dp-modal-row"><span className="dp-modal-icon">📞</span><span>{p.phone}</span></div>}
-              {p.linkedin && (
-                <div className="dp-modal-row">
-                  <span className="dp-modal-icon">🔗</span>
-                  <a href={p.linkedin} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', color: 'inherit' }}>{p.linkedin}</a>
-                </div>
-              )}
-              {p.industry && <div className="dp-modal-row"><span className="dp-modal-icon">🏷</span><span>{p.industry}</span></div>}
-              {p.website  && (
-                <div className="dp-modal-row">
-                  <span className="dp-modal-icon">🌐</span>
-                  <a href={p.website} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', color: 'inherit' }}>{p.website}</a>
-                </div>
-              )}
-              {p.checked_in_at && (
-                <div className="dp-modal-row">
-                  <span className="dp-modal-icon">🕐</span>
-                  <span>{new Date(p.checked_in_at + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              )}
+      <div className="dp-search-body">
+        {!query && (
+          <div className="dp-search-hints">
+            <div className="dp-search-hints-label">Try searching for:</div>
+            <div className="dp-search-hint-chips">
+              {HINTS.map(h => (
+                <button key={h} className="dp-search-hint-chip"
+                  onClick={() => { setQuery(h); runSearch(h) }}>{h}</button>
+              ))}
             </div>
           </div>
-        </div>
-
-        {p.business_description && (
-          <div className="dp-modal-bio dp-modal-business">
-            <div className="dp-modal-bio-label">Company description</div>
-            <div className="dp-modal-bio-text">{p.business_description}</div>
+        )}
+        {query && results.length === 0 && !loading && (
+          <div className="dp-search-state">No participants found for "<strong>{query}</strong>"</div>
+        )}
+        {results.length > 0 && (
+          <div className="dp-search-results">
+            <div className="dp-search-count">{results.length} match{results.length !== 1 ? 'es' : ''} found</div>
+            {results.map(p => (
+              <div key={p.id} className="dp-search-card" onClick={() => onSelect(p)}>
+                <UserAvatar src={p.image_url} name={p.name}
+                  imgClass="dp-search-photo" fallbackClass="dp-search-avatar" apiBase={API_BASE}>
+                  {p.name?.[0]?.toUpperCase()}
+                </UserAvatar>
+                <div className="dp-search-card-body">
+                  <div className="dp-search-card-name">{p.name}</div>
+                  {(p.company || p.occupation) && (
+                    <div className="dp-search-card-occ">{p.company || p.occupation}</div>
+                  )}
+                  {p.reason && <div className="dp-search-card-reason">✦ {p.reason}</div>}
+                </div>
+                {typeof p.score === 'number' && p.score > 0 && (
+                  <div className="dp-search-card-score">{p.score}%</div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -304,18 +401,32 @@ function ParticipantDetailModal({ person, onClose }) {
   )
 }
 
-/* ── Participants directory (single-page grid) ─────────────────── */
-function ParticipantsDirectory({ participants, eventName, onBack, onSelect }) {
-  const [query, setQuery]         = useState('')
-  const [results, setResults]     = useState(null)   // null = no search; array (sorted) when active
-  const [searchState, setState]   = useState('idle') // idle | loading | error | done
-  const [errorMsg, setErrorMsg]   = useState('')
-  const debounceRef = useRef(null)
-  const abortRef    = useRef(null)
+/* ── Swipeable participant profile with 3D page-flip ──────────── */
+function ParticipantSwipeView({ participants, startIndex, eventName, onBack }) {
+  const [index, setIndex]           = useState(startIndex)
 
-  /* Push current participants into the remote search index once on mount
-     (and whenever the participant list changes substantially) so they
-     can appear in semantic search results. */
+  /* Flip-animation refs (carry the OLD page through the rotation) */
+  const [prevSnap, setPrevSnap]     = useState(null)
+  const [isFlipping, setIsFlipping] = useState(false)
+  const [flipDir, setFlipDir]       = useState(null)
+  const containerRef  = useRef(null)
+  const canvasRef     = useRef(null)
+  const flatLayerRef  = useRef(null)
+  const turnWrapRef   = useRef(null)
+  const turnInnerRef  = useRef(null)
+  const animRef       = useRef(null)
+  const prevPersonRef = useRef(participants[startIndex])
+  const prevIndexRef  = useRef(startIndex)
+  const flipDirRef    = useRef(null)
+  const firstRender   = useRef(true)
+
+  /* Swipe input refs */
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+  const mouseStartX = useRef(null)
+
+  /* Push current participants into the remote search index so semantic
+     queries return them. Best-effort, runs once per participant-count. */
   const indexedRef = useRef(0)
   useEffect(() => {
     if (participants.length && participants.length !== indexedRef.current) {
@@ -324,12 +435,192 @@ function ParticipantsDirectory({ participants, eventName, onBack, onSelect }) {
     }
   }, [participants])
 
-  /* Debounced remote search with local fallback */
+  /* Clamp index when participants shrinks (e.g. event refresh) */
+  useEffect(() => {
+    if (index >= participants.length && participants.length > 0) {
+      setIndex(participants.length - 1)
+    }
+  }, [participants.length, index])
+
+  /* Trigger the page-flip whenever index changes */
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false
+      prevPersonRef.current = participants[index]
+      prevIndexRef.current  = index
+      return
+    }
+    if (prevIndexRef.current !== index && flipDirRef.current) {
+      const dir = flipDirRef.current
+      flipDirRef.current = null
+      setPrevSnap({ person: prevPersonRef.current, index: prevIndexRef.current })
+      setFlipDir(dir)
+      setIsFlipping(true)
+      startFlip(dir)
+    }
+    prevPersonRef.current = participants[index]
+    prevIndexRef.current  = index
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, participants])
+
+  useEffect(() => () => { if (animRef.current) cancelAnimationFrame(animRef.current) }, [])
+
+  const startFlip = (dir) => {
+    let t0 = null
+    const DURATION = 600
+    const tick = (ts) => {
+      if (!t0) t0 = ts
+      const raw = Math.min((ts - t0) / DURATION, 1)
+      const t   = raw < 0.5 ? 4 * raw ** 3 : 1 - (-2 * raw + 2) ** 3 / 2
+      updateFrame(t, dir)
+      if (raw < 1) {
+        animRef.current = requestAnimationFrame(tick)
+      } else {
+        const cv = canvasRef.current
+        if (cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height)
+        setIsFlipping(false)
+        setPrevSnap(null)
+        setFlipDir(null)
+      }
+    }
+    animRef.current = requestAnimationFrame(tick)
+  }
+
+  const updateFrame = (t, dir) => {
+    const root = containerRef.current
+    if (!root) return
+    const W = root.offsetWidth
+    const H = root.offsetHeight
+
+    const foldX = dir === 'next' ? W * (1 - t) : W * t
+    const turnW = dir === 'next' ? W - foldX : foldX
+    const angle = t * 90
+
+    if (flatLayerRef.current) {
+      flatLayerRef.current.style.clipPath = dir === 'next'
+        ? `inset(0 ${Math.round(W - foldX)}px 0 0)`
+        : `inset(0 0 0 ${Math.round(foldX)}px)`
+    }
+
+    if (turnWrapRef.current) {
+      const el = turnWrapRef.current
+      if (dir === 'next') {
+        el.style.left            = `${foldX}px`
+        el.style.width           = `${turnW}px`
+        el.style.transformOrigin = 'left center'
+        el.style.transform       = `perspective(1200px) rotateY(${-angle}deg)`
+      } else {
+        el.style.left            = '0px'
+        el.style.width           = `${turnW}px`
+        el.style.transformOrigin = 'right center'
+        el.style.transform       = `perspective(1200px) rotateY(${angle}deg)`
+      }
+    }
+    if (turnInnerRef.current) {
+      turnInnerRef.current.style.left  = dir === 'next' ? `-${foldX}px` : '0px'
+      turnInnerRef.current.style.width = `${W}px`
+    }
+
+    const cv = canvasRef.current
+    if (!cv) return
+    cv.width  = W
+    cv.height = H
+    const ctx = cv.getContext('2d')
+    ctx.clearRect(0, 0, W, H)
+
+    /* Shadow ahead of fold on the newly revealed page */
+    const shadowW = W * 0.055
+    ctx.save()
+    if (dir === 'next') {
+      const sg = ctx.createLinearGradient(Math.max(0, foldX - shadowW), 0, foldX, 0)
+      sg.addColorStop(0, 'rgba(0,0,0,0)')
+      sg.addColorStop(1, 'rgba(0,0,0,0.55)')
+      ctx.fillStyle = sg
+      ctx.fillRect(Math.max(0, foldX - shadowW), 0, Math.min(shadowW, foldX), H)
+    } else {
+      const sg = ctx.createLinearGradient(foldX, 0, Math.min(W, foldX + shadowW), 0)
+      sg.addColorStop(0, 'rgba(0,0,0,0.55)')
+      sg.addColorStop(1, 'rgba(0,0,0,0)')
+      ctx.fillStyle = sg
+      ctx.fillRect(foldX, 0, Math.min(shadowW, W - foldX), H)
+    }
+    ctx.restore()
+
+    /* Crease line at the fold */
+    ctx.save()
+    ctx.strokeStyle = 'rgba(220,210,255,0.95)'
+    ctx.lineWidth   = 1.5
+    ctx.shadowColor = 'rgba(180,160,255,0.5)'
+    ctx.shadowBlur  = 5
+    ctx.beginPath()
+    ctx.moveTo(foldX, 0)
+    ctx.lineTo(foldX, H)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  const goPrev = () => {
+    if (isFlipping || index <= 0) return
+    flipDirRef.current = 'prev'
+    setIndex(i => i - 1)
+  }
+  const goNext = () => {
+    if (isFlipping || index >= participants.length - 1) return
+    flipDirRef.current = 'next'
+    setIndex(i => i + 1)
+  }
+
+  const onSwipe = (dx) => {
+    if (Math.abs(dx) < 60) return
+    if (dx > 0) goPrev(); else goNext()
+  }
+
+  const onTouchStart = (e) => {
+    if (e.target.closest('button, a, input')) return
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+  const onTouchEnd = (e) => {
+    if (e.target.closest('button, a, input')) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = e.changedTouches[0].clientY - touchStartY.current
+    if (Math.abs(dy) > Math.abs(dx)) return
+    onSwipe(dx)
+  }
+  const onMouseDown = (e) => {
+    if (e.target.closest('button, a, input')) return
+    mouseStartX.current = e.clientX
+  }
+  const onMouseUp = (e) => {
+    if (mouseStartX.current === null) return
+    if (e.target.closest('button, a, input')) { mouseStartX.current = null; return }
+    const dx = e.clientX - mouseStartX.current
+    mouseStartX.current = null
+    onSwipe(dx)
+  }
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'ArrowLeft')  goPrev()
+      if (e.key === 'ArrowRight') goNext()
+      if (e.key === 'Escape')     onBack()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, participants.length, isFlipping])
+
+  /* Inline search (top bar) — debounced remote + local fallback */
+  const [query, setQuery]           = useState('')
+  const [results, setResults]       = useState([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const debounceRef = useRef(null)
+  const abortRef    = useRef(null)
+
   useEffect(() => {
     if (!query.trim()) {
-      setResults(null)
-      setState('idle')
-      setErrorMsg('')
+      setResults([])
+      setSearchLoading(false)
       return
     }
     clearTimeout(debounceRef.current)
@@ -337,116 +628,170 @@ function ParticipantsDirectory({ participants, eventName, onBack, onSelect }) {
       abortRef.current?.abort()
       const ctrl = new AbortController()
       abortRef.current = ctrl
-      setState('loading')
-      setErrorMsg('')
+      setSearchLoading(true)
       try {
         const remote = await searchRemote(query, ctrl.signal)
-        const byId = new Map(participants.map(p => [String(p.id), p]))
-        const merged = remote.map(r => mergeRemoteResult(r, byId))
-        setResults(merged)
-        setState('done')
+        const byId = new Map(participants.map(x => [String(x.id), x]))
+        setResults(remote.map(r => mergeRemoteResult(r, byId)))
       } catch (err) {
         if (err.name === 'AbortError') return
-        const local = searchLocally(participants, query)
-        setResults(local)
-        setState('error')
-        setErrorMsg(err.message || 'Search engine unreachable — using local results')
+        setResults(searchLocally(participants, query))
+      } finally {
+        setSearchLoading(false)
       }
     }, 280)
     return () => clearTimeout(debounceRef.current)
   }, [query, participants])
 
-  /* What to render in the grid */
-  const display = results !== null ? results : participants
+  const jumpTo = (person) => {
+    setQuery('')
+    setResults([])
+    const idx = participants.findIndex(x => String(x.id) === String(person.id))
+    if (idx < 0 || idx === index || isFlipping) return
+    flipDirRef.current = idx > index ? 'next' : 'prev'
+    setIndex(idx)
+  }
+
+  const p = participants[index]
+  if (!p) return null
+
+  /* Build the data shape that PersonCard expects so each participant
+     renders in the same layout as the live face-scan card. */
+  const buildScanData = (person) => {
+    let ts = person.checked_in_at || new Date().toISOString()
+    ts = ts.replace(/Z$/, '')   // PersonCard appends 'Z' itself
+    return {
+      user: { ...person, already_attended: false },
+      event_name: eventName,
+      timestamp: ts,
+      type: 'match',
+    }
+  }
+
+  const renderProfile = (person) => (
+    <div className="dp-swipe-profile">
+      <PersonCard data={buildScanData(person)} />
+    </div>
+  )
 
   return (
-    <div className="dp-directory">
-      <button className="dp-back-btn" onClick={onBack}>← Back</button>
+    <div className="dp-swipe-view">
 
-      <div className="dp-dir-inner">
-        <div className="dp-dir-header">
-          <h1 className="dp-dir-title">Event directory</h1>
-          <p className="dp-dir-sub">
-            {participants.length} {participants.length === 1 ? 'person' : 'people'} registered.
-            {' '}Type a query to search.
-            {eventName && <span className="dp-dir-event">◆ {eventName}</span>}
-          </p>
-        </div>
+      {/* Stable header: back + search bar + counter (does NOT flip) */}
+      <div className="dp-swipe-header">
+        <button className="dp-back-btn dp-swipe-back-btn" onClick={onBack}>← Back</button>
 
-        <div className="dp-dir-controls">
-          <div className="dp-dir-search-wrap">
-            <input
-              className="dp-dir-search-input"
-              placeholder='Search… e.g. "ML engineers in healthcare"'
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              autoComplete="off"
-              spellCheck="false"
-            />
-            {searchState === 'loading' && <span className="dp-dir-spinner" />}
-            {query && (
-              <button className="dp-dir-clear" onClick={() => setQuery('')} aria-label="Clear">×</button>
-            )}
-          </div>
-        </div>
+        <div className="dp-swipe-search-wrap">
+          <span className="dp-search-icon-prefix">🔍</span>
+          <input
+            className="dp-swipe-search-input"
+            placeholder='Search… e.g. "ML engineers in healthcare"'
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            autoComplete="off"
+            spellCheck="false"
+          />
+          {searchLoading && <span className="dp-dir-spinner" />}
+          {query && !searchLoading && (
+            <button className="dp-search-clear" onClick={() => setQuery('')} aria-label="Clear">×</button>
+          )}
 
-        {searchState === 'error' && (
-          <div className="dp-dir-warn">⚠ {errorMsg}</div>
-        )}
-
-        {display.length === 0 ? (
-          <div className="dp-dir-empty">
-            {query
-              ? <>No participants found for "<strong>{query}</strong>"</>
-              : 'No participants registered yet.'}
-          </div>
-        ) : (
-          <div className="dp-dir-grid">
-            {display.map(p => (
-              <button
-                key={p.id}
-                className="dp-dir-card"
-                onClick={() => onSelect(p)}
-              >
-                <div className="dp-dir-card-top">
-                  <UserAvatar
-                    src={p.image_url}
-                    name={p.name}
-                    imgClass="dp-dir-card-photo"
-                    fallbackClass="dp-dir-card-avatar"
-                    apiBase={API_BASE}
-                  >
-                    {(p.name || '?').split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase()).join('')}
+          {query && results.length > 0 && (
+            <div className="dp-swipe-search-results">
+              <div className="dp-search-count">{results.length} match{results.length !== 1 ? 'es' : ''}</div>
+              {results.map(r => (
+                <div key={r.id} className="dp-search-card" onClick={() => jumpTo(r)}>
+                  <UserAvatar src={r.image_url} name={r.name}
+                    imgClass="dp-search-photo" fallbackClass="dp-search-avatar" apiBase={API_BASE}>
+                    {r.name?.[0]?.toUpperCase()}
                   </UserAvatar>
-                  <div className="dp-dir-card-body">
-                    <div className="dp-dir-card-name">{p.name}</div>
-                    {p.company && <div className="dp-dir-card-company">{p.company}</div>}
-                    {typeof p.score === 'number' && p.score > 0 && (
-                      <div className="dp-dir-card-reason">
-                        ✦ {p.reason || 'Matched'} · {p.score}%
-                      </div>
+                  <div className="dp-search-card-body">
+                    <div className="dp-search-card-name">{r.name}</div>
+                    {(r.company || r.occupation) && (
+                      <div className="dp-search-card-occ">{r.company || r.occupation}</div>
                     )}
+                    {r.reason && <div className="dp-search-card-reason">✦ {r.reason}</div>}
                   </div>
+                  {typeof r.score === 'number' && r.score > 0 && (
+                    <div className="dp-search-card-score">{r.score}%</div>
+                  )}
                 </div>
-                {p.linkedin && (
-                  <a
-                    className="dp-dir-card-linkedin"
-                    href={p.linkedin}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    🔗 {p.linkedin}
-                  </a>
-                )}
-              </button>
-            ))}
+              ))}
+            </div>
+          )}
+          {query && !searchLoading && results.length === 0 && (
+            <div className="dp-swipe-search-results">
+              <div className="dp-search-state">No matches for "<strong>{query}</strong>"</div>
+            </div>
+          )}
+        </div>
+
+        <div className="dp-swipe-counter">
+          {index + 1} / {participants.length}
+          {eventName && <span className="dp-part-event-badge">◆ {eventName}</span>}
+        </div>
+      </div>
+
+      {/* Flip area: only the profile body flips */}
+      <div
+        ref={containerRef}
+        className="dp-swipe-flip-area"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onMouseDown={onMouseDown}
+        onMouseUp={onMouseUp}
+      >
+        {/* z-index 1 — new page underneath */}
+        <div className="dp-page-layer">
+          {renderProfile(p)}
+        </div>
+
+        {isFlipping && prevSnap && (<>
+          {/* z-index 2 — old page flat half (stationary clipped) */}
+          <div ref={flatLayerRef} className="dp-page-layer dp-page-old" style={{ pointerEvents: 'none' }}>
+            {renderProfile(prevSnap.person)}
           </div>
-        )}
+
+          {/* z-index 3 — old page turning half (3D rotation) */}
+          <div
+            ref={turnWrapRef}
+            style={{
+              position: 'absolute', top: 0, height: '100%', zIndex: 3,
+              overflow: 'hidden', pointerEvents: 'none',
+              backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden',
+            }}
+          >
+            <div ref={turnInnerRef} style={{ position: 'absolute', top: 0, height: '100%' }}>
+              {renderProfile(prevSnap.person)}
+            </div>
+            <div style={{
+              position: 'absolute', inset: 0, pointerEvents: 'none',
+              background: flipDir === 'next'
+                ? 'linear-gradient(to right, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.65) 100%)'
+                : 'linear-gradient(to left,  rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.65) 100%)',
+            }} />
+          </div>
+        </>)}
+
+        {/* z-index 4 — canvas for shadow + crease */}
+        {isFlipping && <canvas ref={canvasRef} className="dp-flip-canvas" />}
+
+        {/* Floating Previous / Next buttons (stable, don't flip) */}
+        <button
+          className="dp-part-nav-btn dp-swipe-prev-btn"
+          onClick={goPrev}
+          disabled={index === 0 || isFlipping}
+        >← Previous</button>
+        <button
+          className="dp-part-nav-btn dp-swipe-next-btn"
+          onClick={goNext}
+          disabled={index >= participants.length - 1 || isFlipping}
+        >Next →</button>
       </div>
     </div>
   )
 }
+
 
 /* ── Confetti burst ─────────────────────────────────────────────── */
 function fireConfetti() {
@@ -509,7 +854,6 @@ export default function DisplayPage() {
   const [eventNotFound, setEventNotFound] = useState(false)
   const [view, setView]                 = useState('main')  // 'main' | 'profiles'
   const [participants, setParticipants] = useState([])
-  const [selected, setSelected]         = useState(null)
   const [partLoading, setPartLoading]   = useState(false)
   const [popup, setPopup]               = useState(null)
 
@@ -564,6 +908,43 @@ export default function DisplayPage() {
       })
       .catch(() => {})
   }, [numericEventId])
+
+  /* ── Swipe on main display → opens participants ── */
+  const mainTouchX  = useRef(0)
+  const mainTouchY  = useRef(0)
+  const mainMouseX  = useRef(null)
+  const openParticipants = () => {
+    if (view === 'main') {
+      setView('profiles')
+      loadParticipants()
+    }
+  }
+  const handleMainSwipe = (dx, dy) => {
+    if (Math.abs(dy) > Math.abs(dx)) return
+    if (dx < -60) openParticipants()  // swipe left → participants
+  }
+  const onMainTouchStart = (e) => {
+    if (e.target.closest('button, a, input')) return
+    mainTouchX.current = e.touches[0].clientX
+    mainTouchY.current = e.touches[0].clientY
+  }
+  const onMainTouchEnd = (e) => {
+    if (e.target.closest('button, a, input')) return
+    const dx = e.changedTouches[0].clientX - mainTouchX.current
+    const dy = e.changedTouches[0].clientY - mainTouchY.current
+    handleMainSwipe(dx, dy)
+  }
+  const onMainMouseDown = (e) => {
+    if (e.target.closest('button, a, input')) return
+    mainMouseX.current = e.clientX
+  }
+  const onMainMouseUp = (e) => {
+    if (mainMouseX.current === null) return
+    if (e.target.closest('button, a, input')) { mainMouseX.current = null; return }
+    const dx = e.clientX - mainMouseX.current
+    mainMouseX.current = null
+    handleMainSwipe(dx, 0)
+  }
 
   /* ── Load participants ── */
   const loadParticipants = useCallback(() => {
@@ -643,29 +1024,44 @@ export default function DisplayPage() {
   return (
     <div className="dp-page">
       {view === 'main' ? (
-        <div className="dp-face dp-face--front" style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div
+          className="dp-face dp-face--front"
+          style={{ position: 'relative', width: '100%', height: '100%' }}
+          onTouchStart={onMainTouchStart}
+          onTouchEnd={onMainTouchEnd}
+          onMouseDown={onMainMouseDown}
+          onMouseUp={onMainMouseUp}
+        >
           {person ? <PersonCard data={person} /> : <IdleScreen connected={connected} eventName={eventName} />}
           <button
             className="dp-open-participants-btn"
-            onClick={() => { setView('profiles'); loadParticipants() }}
+            onClick={openParticipants}
           >
             Open Participants
           </button>
+          <div className="dp-swipe-hint dp-swipe-hint--left">
+            <span className="dp-swipe-arrow">‹</span> swipe to see attendees
+          </div>
         </div>
       ) : (
         <div className="dp-face dp-face--back" style={{ position: 'relative', width: '100%', height: '100%', pointerEvents: 'auto', transform: 'none', background: 'var(--bg)' }}>
           {partLoading && participants.length === 0 ? (
             <div className="dp-part-loading">Loading participants…</div>
+          ) : participants.length === 0 ? (
+            <div className="dp-part-empty">
+              <div>No one has checked in yet.</div>
+              {eventName && <div style={{ color: 'var(--accent)', marginTop: 8 }}>{eventName}</div>}
+              <button className="dp-back-btn" style={{ position: 'static', marginTop: 24 }} onClick={() => setView('main')}>
+                ← Back
+              </button>
+            </div>
           ) : (
-            <ParticipantsDirectory
+            <ParticipantSwipeView
               participants={participants}
+              startIndex={0}
               eventName={eventName}
               onBack={() => setView('main')}
-              onSelect={(p) => setSelected(p)}
             />
-          )}
-          {selected && (
-            <ParticipantDetailModal person={selected} onClose={() => setSelected(null)} />
           )}
         </div>
       )}
