@@ -64,6 +64,14 @@ sudo -u postgres psql -c "DROP USER IF EXISTS face_auth_user;" 2>/dev/null || tr
 sudo -u postgres psql -c "CREATE USER face_auth_user WITH PASSWORD '$DB_PASSWORD';"
 sudo -u postgres psql -c "CREATE DATABASE face_auth OWNER face_auth_user;"
 
+# Detect the actual port the apt-installed cluster is bound to (defaults to
+# 5432, but moves to 5433+ if another postgres — e.g. a Docker container —
+# already holds 5432). Without this, the app's DATABASE_URL would hit the
+# wrong server and fail with "password authentication failed".
+PG_PORT=$(pg_lsclusters --no-header 2>/dev/null | awk '$4=="online"{print $3; exit}')
+PG_PORT=${PG_PORT:-5432}
+echo "  PostgreSQL bound to port: $PG_PORT"
+
 # ── 4. Python backend ─────────────────────────────────────────────────────────
 echo "[4/7] Installing Python backend (this takes a few minutes)..."
 cd "$WORK_DIR/backend"
@@ -76,7 +84,7 @@ deactivate
 # ── 5. Environment file ───────────────────────────────────────────────────────
 echo "[5/7] Writing .env..."
 cat > "$WORK_DIR/backend/.env" << EOF
-DATABASE_URL=postgresql://face_auth_user:${DB_PASSWORD}@localhost/face_auth
+DATABASE_URL=postgresql://face_auth_user:${DB_PASSWORD}@localhost:${PG_PORT}/face_auth
 SECRET_KEY=${SECRET_KEY}
 ADMIN_EMAIL=${ADMIN_EMAIL}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
