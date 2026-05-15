@@ -60,12 +60,49 @@ export default function CheckInPage() {
       const data = await res.json()
       setRoster(prev => prev.map(row =>
         row.id === Number(selectedUser)
-          ? { ...row, status: 'present', check_in_type: data.check_in_type, timestamp: data.timestamp }
+          ? { ...row, status: 'present', check_in_type: data.check_in_type, timestamp: data.timestamp, checked_out_at: null }
           : row
       ))
       setLastCheckIn({
         name: currentUser?.name,
+        action: 'in',
         check_in_type: data.check_in_type,
+      })
+      setSelectedUser('')
+    } catch {
+      setError('Network error. Make sure the backend is running.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function handleCheckOut() {
+    if (!selectedUser || !selectedEvent) return
+    setPending(true)
+    setError('')
+    try {
+      const res = await apiFetch('/api/attendance/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: Number(selectedUser),
+          event_id: Number(selectedEvent),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.detail || 'Check-out failed.')
+        return
+      }
+      const data = await res.json()
+      setRoster(prev => prev.map(row =>
+        row.id === Number(selectedUser)
+          ? { ...row, status: 'checked_out', checked_out_at: data.checked_out_at }
+          : row
+      ))
+      setLastCheckIn({
+        name: currentUser?.name,
+        action: 'out',
       })
       setSelectedUser('')
     } catch {
@@ -121,9 +158,11 @@ export default function CheckInPage() {
                   <option key={r.id} value={r.id}>
                     {r.name}
                     {r.email ? ` · ${r.email}` : ''}
-                    {r.status === 'present'
-                      ? ` · already ${r.check_in_type === 'in_person' ? 'in-person' : 'virtual'}`
-                      : ''}
+                    {r.status === 'checked_out'
+                      ? ' · checked out'
+                      : r.status === 'present'
+                        ? ` · already ${r.check_in_type === 'in_person' ? 'in-person' : 'virtual'}`
+                        : ''}
                   </option>
                 ))}
               </select>
@@ -147,11 +186,16 @@ export default function CheckInPage() {
                     ✓ already {currentUser.check_in_type === 'in_person' ? 'In-Person' : 'Virtual'}
                   </span>
                 )}
+                {currentUser.status === 'checked_out' && (
+                  <span className="ci-badge" style={{ marginTop: 6 }}>
+                    ⤴ checked out
+                  </span>
+                )}
               </div>
             </div>
           )}
 
-          {currentUser && (
+          {currentUser && currentUser.status !== 'present' && (
             <div className="ci-actions">
               <button
                 className="ci-action-btn ci-action-btn--virtual"
@@ -170,12 +214,29 @@ export default function CheckInPage() {
             </div>
           )}
 
+          {currentUser && currentUser.status === 'present' && (
+            <div className="ci-actions">
+              <button
+                className="ci-action-btn ci-action-btn--in_person"
+                disabled={pending}
+                onClick={handleCheckOut}
+              >
+                {pending ? 'Checking out…' : 'Check-Out'}
+              </button>
+            </div>
+          )}
+
           {error && <div className="ci-error">{error}</div>}
 
-          {lastCheckIn && (
+          {lastCheckIn && lastCheckIn.action === 'in' && (
             <div className="ci-success">
               ✓ {lastCheckIn.name} checked in
               {' '}({lastCheckIn.check_in_type === 'in_person' ? 'In-Person' : 'Virtual'}). Now showing on the display screen.
+            </div>
+          )}
+          {lastCheckIn && lastCheckIn.action === 'out' && (
+            <div className="ci-success">
+              ⤴ {lastCheckIn.name} checked out.
             </div>
           )}
         </div>

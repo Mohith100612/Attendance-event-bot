@@ -55,6 +55,11 @@ def run_migrations():
                 "ALTER TABLE attendance ADD COLUMN check_in_type VARCHAR(20)"
             ))
 
+        if "checked_out_at" not in att_cols:
+            conn.execute(text(
+                "ALTER TABLE attendance ADD COLUMN checked_out_at TIMESTAMP"
+            ))
+
         if dialect == "postgresql":
             conn.execute(text("""
                 CREATE UNIQUE INDEX IF NOT EXISTS uq_attendance_user_event
