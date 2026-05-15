@@ -30,14 +30,13 @@ export default function SignupPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return showStatus('error', 'Full name is required.')
-    if (!form.email.trim()) return showStatus('error', 'Email is required.')
 
     setSubmitting(true)
     setStatus(null)
 
     const fd = new FormData()
     fd.append('name', form.name.trim())
-    fd.append('email', form.email.trim())
+    if (form.email.trim()) fd.append('email', form.email.trim())
     if (form.phone.trim()) fd.append('phone', form.phone.trim())
     if (form.linkedin.trim()) fd.append('linkedin', form.linkedin.trim())
     if (form.occupation.trim()) fd.append('occupation', form.occupation.trim())
@@ -94,7 +93,7 @@ export default function SignupPage() {
                 onChange={handleField} disabled={submitting} />
             </div>
             <div className="sr-field">
-              <label>Email Address <span className="req">*</span></label>
+              <label>Email Address</label>
               <input name="email" type="email" placeholder="john@example.com" value={form.email}
                 onChange={handleField} disabled={submitting} />
             </div>

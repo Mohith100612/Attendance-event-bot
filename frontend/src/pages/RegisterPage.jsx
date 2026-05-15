@@ -43,7 +43,6 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return showStatus('error', 'Full name is required.')
-    if (!form.email.trim()) return showStatus('error', 'Email is required.')
     if (!selectedEvent) return showStatus('error', 'Please select an event.')
 
     setSubmitting(true)
@@ -148,7 +147,7 @@ export default function RegisterPage() {
                 onChange={handleField} disabled={submitting} />
             </div>
             <div className="sr-field">
-              <label>Email Address <span className="req">*</span></label>
+              <label>Email Address</label>
               <input name="email" type="email" placeholder="john@example.com" value={form.email}
                 onChange={handleField} disabled={submitting} />
             </div>
