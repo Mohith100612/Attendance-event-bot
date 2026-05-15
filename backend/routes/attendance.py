@@ -129,7 +129,7 @@ def present_attendees(
 
     query = """
         SELECT u.id, u.name, u.email, u.phone, u.linkedin, u.occupation,
-               u.company, u.industry, u.website, u.business_description,
+               u.company, u.industry, u.business_description,
                u.image_url, a.timestamp, a.check_in_type, e.name AS event_name
         FROM attendance a
         JOIN users u ON u.id = a.user_id
@@ -155,7 +155,6 @@ def present_attendees(
             "occupation": r.occupation,
             "company": r.company,
             "industry": r.industry,
-            "website": r.website,
             "business_description": r.business_description,
             "image_url": r.image_url,
             "checked_in_at": r.timestamp,

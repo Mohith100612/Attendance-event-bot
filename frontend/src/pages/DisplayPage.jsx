@@ -251,12 +251,6 @@ function ProfileBody({ person: p }) {
               </div>
             )}
             {p.industry && <div className="dp-modal-row"><span className="dp-modal-icon">🏷</span><span>{p.industry}</span></div>}
-            {p.website  && (
-              <div className="dp-modal-row">
-                <span className="dp-modal-icon">🌐</span>
-                <a href={p.website} target="_blank" rel="noreferrer" style={{ wordBreak: 'break-all', color: 'inherit' }}>{p.website}</a>
-              </div>
-            )}
             {p.checked_in_at && (
               <div className="dp-modal-row">
                 <span className="dp-modal-icon">🕐</span>

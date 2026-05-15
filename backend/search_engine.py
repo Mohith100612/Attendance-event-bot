@@ -46,7 +46,6 @@ def user_to_dict(user) -> dict:
         "occupation":           user.occupation,
         "industry":             user.industry,
         "business_description": user.business_description,
-        "website":              user.website,
         "linkedin":             user.linkedin,
     }
 
@@ -114,7 +113,7 @@ def _user_payload(u: dict) -> dict:
         "role":               u.get("occupation") or u.get("industry") or "Member",
         "industry":           u.get("industry") or "",
         "detailed_profile":   u.get("business_description"),
-        "linkedin_url":       u.get("website") or u.get("linkedin"),
+        "linkedin_url":       u.get("linkedin"),
     }
 
 

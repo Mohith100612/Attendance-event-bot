@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { apiFetch } from '../config'
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', website: '', business_description: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', business_description: '' })
   const [preview, setPreview] = useState(null)
   const [uploadFile, setUploadFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -43,7 +43,6 @@ export default function RegisterPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return showStatus('error', 'Full name is required.')
-    if (!form.email.trim()) return showStatus('error', 'Email is required.')
     if (!selectedEvent) return showStatus('error', 'Please select an event.')
 
     setSubmitting(true)
@@ -64,7 +63,7 @@ export default function RegisterPage() {
       } else {
         const evtMsg = data.event_name ? ` for "${data.event_name}"` : ''
         showStatus('success', `${data.name} registered successfully${evtMsg}!`)
-        setForm({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', website: '', business_description: '' })
+        setForm({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', business_description: '' })
         setSelectedEvent('')
         setPreview(null)
         setUploadFile(null)
@@ -148,7 +147,7 @@ export default function RegisterPage() {
                 onChange={handleField} disabled={submitting} />
             </div>
             <div className="sr-field">
-              <label>Email Address <span className="req">*</span></label>
+              <label>Email Address</label>
               <input name="email" type="email" placeholder="john@example.com" value={form.email}
                 onChange={handleField} disabled={submitting} />
             </div>
@@ -184,12 +183,6 @@ export default function RegisterPage() {
               <input name="industry" placeholder="SaaS / Healthcare / Fintech" value={form.industry}
                 onChange={handleField} disabled={submitting} />
             </div>
-          </div>
-
-          <div className="sr-field">
-            <label>Website</label>
-            <input name="website" placeholder="https://yourcompany.com"
-              value={form.website} onChange={handleField} disabled={submitting} />
           </div>
 
           <div className="sr-field">
@@ -259,7 +252,7 @@ export default function RegisterPage() {
 
         <div className="import-columns-hint">
           Expected column headers (exact, case-insensitive):
-          <code>name &nbsp;|&nbsp; gmail &nbsp;|&nbsp; phone no &nbsp;|&nbsp; occupation &nbsp;|&nbsp; company &nbsp;|&nbsp; industry &nbsp;|&nbsp; website &nbsp;|&nbsp; business description &nbsp;|&nbsp; linkedin &nbsp;|&nbsp; photo &nbsp;|&nbsp; event name</code>
+          <code>name &nbsp;|&nbsp; gmail &nbsp;|&nbsp; phone no &nbsp;|&nbsp; occupation &nbsp;|&nbsp; company &nbsp;|&nbsp; industry &nbsp;|&nbsp; business description &nbsp;|&nbsp; linkedin &nbsp;|&nbsp; photo &nbsp;|&nbsp; event name</code>
           <br />
           The <em>photo</em> column is optional and may contain a Google Drive sharing link or a direct image URL.
         </div>
@@ -326,7 +319,7 @@ export default function RegisterPage() {
 
         <div className="import-columns-hint">
           Expected CSV headers (any subset, case-insensitive):
-          <code>full_name &nbsp;|&nbsp; email &nbsp;|&nbsp; phone &nbsp;|&nbsp; company &nbsp;|&nbsp; industry &nbsp;|&nbsp; website &nbsp;|&nbsp; business_description &nbsp;|&nbsp; image_filename</code>
+          <code>full_name &nbsp;|&nbsp; email &nbsp;|&nbsp; phone &nbsp;|&nbsp; company &nbsp;|&nbsp; industry &nbsp;|&nbsp; business_description &nbsp;|&nbsp; image_filename</code>
           <br />
           The <em>image_filename</em> column should reference one of the photo files you upload
           (folder prefix like <code>images/</code> is OK — only the file name is used).
