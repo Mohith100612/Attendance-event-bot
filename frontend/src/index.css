@@ -2758,27 +2758,28 @@ html, body, #root {
   display: flex;
 }
 
-/* Floating Previous / Next buttons — sit on top of the profile, no footer */
-.dp-swipe-prev-btn,
-.dp-swipe-next-btn {
+/* Nav bar holding Previous / Next. Desktop: transparent floating row
+   over the flip area. Mobile (≤768px): solid sticky bottom bar with a
+   centered counter so content can never scroll behind the buttons. */
+.dp-swipe-nav-bar {
   position: absolute;
+  left: 0;
+  right: 0;
   bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  gap: 12px;
   z-index: 5;
+  pointer-events: none;
+}
+.dp-swipe-nav-bar > button {
+  pointer-events: auto;
   box-shadow: 0 6px 18px rgba(0,0,0,0.4);
 }
-.dp-swipe-prev-btn { left: 28px; }
-.dp-swipe-next-btn { right: 28px; }
-
-@media (max-width: 720px) {
-  .dp-swipe-counter { font-size: 0.85rem; gap: 6px; }
-  .dp-swipe-prev-btn,
-  .dp-swipe-next-btn {
-    bottom: 16px;
-    padding: 10px 18px;
-    font-size: 0.85rem;
-  }
-  .dp-swipe-prev-btn { left: 16px; }
-  .dp-swipe-next-btn { right: 16px; }
+.dp-swipe-nav-counter {
+  display: none;
 }
 
 /* ── Participant nav buttons (bottom corners) ────────────────── */
@@ -3032,6 +3033,9 @@ html, body, #root {
   .dp-card {
     flex-direction: column;
     overflow-y: auto;
+    /* Reserve room for the sticky bottom nav so content never hides
+       behind it. Matches roughly the bar height + safe-area inset. */
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
   .dp-photo-side {
     width: 100%;
@@ -3071,13 +3075,46 @@ html, body, #root {
   .dp-detail-label { width: auto; font-size: 0.65rem; }
   .dp-detail-value { font-size: 0.92rem; word-break: break-word; }
 
-  /* Swipe view header & nav — keep usable on phones */
-  .dp-swipe-header { padding: 12px 12px; gap: 8px; flex-wrap: wrap; }
+  /* Header: keep back-button + search on a single row on phones.
+     The page counter (redundant with the one in the bottom bar) is
+     hidden so the search input gets the room it needs. */
+  .dp-swipe-header { padding: 10px 12px; gap: 8px; flex-wrap: nowrap; }
   .dp-swipe-back-btn { padding: 8px 12px; font-size: 0.85rem; }
-  .dp-swipe-search-wrap { padding: 8px 12px; }
-  .dp-swipe-search-input { font-size: 0.9rem; }
+  .dp-swipe-search-wrap { flex: 1; min-width: 0; padding: 4px 10px; }
+  .dp-swipe-search-input { font-size: 0.9rem; padding: 8px 4px; }
+  .dp-swipe-header .dp-swipe-counter { display: none; }
+
+  /* Nav bar becomes a real, opaque, sticky bottom bar so it never
+     overlaps the scrolling profile content. */
+  .dp-swipe-nav-bar {
+    bottom: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: rgba(11, 11, 32, 0.92);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    pointer-events: auto;
+    gap: 10px;
+  }
+  .dp-swipe-nav-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-width: 56px;
+    padding: 0 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.72);
+  }
   .dp-swipe-prev-btn,
-  .dp-swipe-next-btn { padding: 9px 14px; font-size: 0.8rem; }
+  .dp-swipe-next-btn {
+    flex: 1;
+    padding: 11px 12px;
+    font-size: 0.85rem;
+    box-shadow: none;
+  }
 
   /* Live check-in popup on phones */
   .dp-popup { padding: 18px 22px; gap: 12px; max-width: calc(100vw - 32px); }

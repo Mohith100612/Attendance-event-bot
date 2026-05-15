@@ -189,6 +189,21 @@ class SearchEngine:
     def delete_all(self) -> None:
         self.index.delete(delete_all=True)
 
+    def list_all_ids(self) -> List[str]:
+        """Return every vector ID currently stored in the index."""
+        ids: List[str] = []
+        for page in self.index.list():
+            ids.extend(page)
+        return ids
+
+    def delete_many(self, ids: List[str]) -> int:
+        """Delete a batch of vector IDs. Pinecone caps each call at 1000 IDs."""
+        if not ids:
+            return 0
+        for i in range(0, len(ids), 1000):
+            self.index.delete(ids=ids[i:i + 1000])
+        return len(ids)
+
     def search(
         self,
         query: str,
