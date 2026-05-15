@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -7,6 +7,7 @@ from database import get_db
 from models import Event, Attendance, User
 from image_storage import UPLOAD_DIR
 from auth import require_admin
+import search_engine
 import os
 
 router = APIRouter(prefix="/api/events", tags=["events"])
@@ -22,8 +23,10 @@ class BulkEnrollRequest(BaseModel):
     exclude_event_ids: list[int] = []
 
 
-def _delete_event_cascade(event_id: int, db: Session):
-    """Delete an event, its exclusive users (with photos), and all attendance records."""
+def _delete_event_cascade(event_id: int, db: Session) -> list[int]:
+    """Delete an event, its exclusive users (with photos), and all attendance records.
+    Returns the list of user IDs that were deleted so the caller can purge them
+    from the vector search index (Pinecone)."""
     only_here = db.execute(text("""
         SELECT DISTINCT a.user_id FROM attendance a
         WHERE a.event_id = :eid
@@ -38,6 +41,7 @@ def _delete_event_cascade(event_id: int, db: Session):
           )
     """), {"eid": event_id}).fetchall()
 
+    deleted_user_ids: list[int] = []
     for row in only_here:
         user = db.query(User).filter(User.id == row.user_id, User.role != "admin").first()
         if user:
@@ -45,12 +49,14 @@ def _delete_event_cascade(event_id: int, db: Session):
                 filepath = os.path.join(UPLOAD_DIR, os.path.basename(user.image_url))
                 if os.path.exists(filepath):
                     os.remove(filepath)
+            deleted_user_ids.append(user.id)
             db.delete(user)
 
     db.query(Attendance).filter(Attendance.event_id == event_id).delete()
     event = db.query(Event).filter(Event.id == event_id).first()
     if event:
         db.delete(event)
+    return deleted_user_ids
 
 
 def _purge_expired(db: Session):
@@ -60,10 +66,13 @@ def _purge_expired(db: Session):
             Event.expires_at.isnot(None),
             Event.expires_at < today_start,
         ).all()
+        purged_user_ids: list[int] = []
         for event in expired:
-            _delete_event_cascade(event.id, db)
+            purged_user_ids.extend(_delete_event_cascade(event.id, db))
         if expired:
             db.commit()
+            for uid in purged_user_ids:
+                search_engine.bg_delete(uid)
     except Exception:
         db.rollback()
 
@@ -143,13 +152,15 @@ def event_users(event_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{event_id}", dependencies=[Depends(require_admin)])
-def delete_event(event_id: int, db: Session = Depends(get_db)):
+def delete_event(event_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     event = db.query(Event).filter(Event.id == event_id).first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found.")
-    _delete_event_cascade(event_id, db)
+    purged_user_ids = _delete_event_cascade(event_id, db)
     db.commit()
-    return {"success": True}
+    for uid in purged_user_ids:
+        background_tasks.add_task(search_engine.bg_delete, uid)
+    return {"success": True, "purged_users": len(purged_user_ids)}
 
 
 @router.post("/{event_id}/enroll-all-except", dependencies=[Depends(require_admin)])

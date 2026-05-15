@@ -749,17 +749,23 @@ function ParticipantSwipeView({ participants, startIndex, eventName, onBack }) {
         {/* z-index 4 — canvas for shadow + crease */}
         {isFlipping && <canvas ref={canvasRef} className="dp-flip-canvas" />}
 
-        {/* Floating Previous / Next buttons (stable, don't flip) */}
-        <button
-          className="dp-part-nav-btn dp-swipe-prev-btn"
-          onClick={goPrev}
-          disabled={index === 0 || isFlipping}
-        >← Previous</button>
-        <button
-          className="dp-part-nav-btn dp-swipe-next-btn"
-          onClick={goNext}
-          disabled={index >= participants.length - 1 || isFlipping}
-        >Next →</button>
+        {/* Nav bar — floats over the page on desktop, becomes a real
+            bottom bar on mobile so it never overlaps profile content. */}
+        <div className="dp-swipe-nav-bar">
+          <button
+            className="dp-part-nav-btn dp-swipe-prev-btn"
+            onClick={goPrev}
+            disabled={index === 0 || isFlipping}
+          >← Previous</button>
+          <div className="dp-swipe-nav-counter">
+            {index + 1} / {participants.length}
+          </div>
+          <button
+            className="dp-part-nav-btn dp-swipe-next-btn"
+            onClick={goNext}
+            disabled={index >= participants.length - 1 || isFlipping}
+          >Next →</button>
+        </div>
       </div>
     </div>
   )

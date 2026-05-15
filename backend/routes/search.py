@@ -49,6 +49,27 @@ def rebuild_index(db: Session = Depends(get_db)):
     return {"deleted_all": True, "reindexed": count}
 
 
+@router.post("/cleanup-orphans", dependencies=[Depends(require_admin)])
+def cleanup_orphans(db: Session = Depends(get_db)):
+    """Delete Pinecone vectors whose user_id no longer exists in the SQL DB.
+    Useful after an event delete that ran before the cascade was wired up to
+    the vector index (e.g., the alumnx cleanup)."""
+    engine = get_engine()
+    if engine is None:
+        raise HTTPException(status_code=503, detail="Search engine not initialised.")
+
+    pinecone_ids = engine.list_all_ids()
+    live_ids = {str(uid) for (uid,) in db.query(User.id).all()}
+    orphans = [vid for vid in pinecone_ids if vid not in live_ids]
+    deleted = engine.delete_many(orphans)
+    return {
+        "pinecone_total": len(pinecone_ids),
+        "live_users":     len(live_ids),
+        "orphans":        len(orphans),
+        "deleted":        deleted,
+    }
+
+
 @router.get("")
 async def search(
     q: str = Query(..., min_length=1, description="Natural language search query"),
