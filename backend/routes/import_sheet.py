@@ -118,7 +118,6 @@ def import_from_sheet(body: ImportRequest, db: Session = Depends(get_db)):
             occupation=row.get("occupation", "") or None,
             company=row.get("company", row.get("organization", "")) or None,
             industry=row.get("industry", "") or None,
-            website=row.get("website", "") or None,
             business_description=(
                 row.get("business_description")
                 or row.get("business description")
@@ -267,7 +266,6 @@ async def _do_csv_upload(csv_file, images, event_name, db):
                 occupation=row.get("occupation") or None,
                 company=row.get("company") or row.get("organization") or None,
                 industry=row.get("industry") or None,
-                website=row.get("website") or None,
                 business_description=(
                     row.get("business_description")
                     or row.get("description")
@@ -289,7 +287,6 @@ async def _do_csv_upload(csv_file, images, event_name, db):
                 occupation=row.get("occupation") or None,
                 company=row.get("company") or row.get("organization") or None,
                 industry=row.get("industry") or None,
-                website=row.get("website") or None,
                 business_description=(
                     row.get("business_description")
                     or row.get("description")

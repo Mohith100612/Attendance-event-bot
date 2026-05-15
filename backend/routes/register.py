@@ -23,7 +23,6 @@ async def register_user(
     occupation: str = Form(None),
     company: str = Form(None),
     industry: str = Form(None),
-    website: str = Form(None),
     business_description: str = Form(None),
     event_id: int = Form(None),
     image: UploadFile = File(None),
@@ -55,7 +54,6 @@ async def register_user(
         occupation=occupation.strip() if occupation else None,
         company=company.strip() if company else None,
         industry=industry.strip() if industry else None,
-        website=website.strip() if website else None,
         business_description=business_description.strip() if business_description else None,
         image_url=image_url,
     )
@@ -102,7 +100,6 @@ def list_users(db: Session = Depends(get_db)):
             "occupation": u.occupation,
             "company": u.company,
             "industry": u.industry,
-            "website": u.website,
             "business_description": u.business_description,
             "image_url": u.image_url,
             "registered_at": u.registered_at,

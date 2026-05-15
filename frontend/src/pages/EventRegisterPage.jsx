@@ -5,7 +5,7 @@ import { apiFetch } from '../config'
 export default function EventRegisterPage() {
   const { eventId } = useParams()
 
-  const [form, setForm] = useState({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', website: '', business_description: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', business_description: '' })
   const [preview, setPreview] = useState(null)
   const [uploadFile, setUploadFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -57,7 +57,6 @@ export default function EventRegisterPage() {
     if (form.occupation.trim()) fd.append('occupation', form.occupation.trim())
     if (form.company.trim()) fd.append('company', form.company.trim())
     if (form.industry.trim()) fd.append('industry', form.industry.trim())
-    if (form.website.trim()) fd.append('website', form.website.trim())
     if (form.business_description.trim()) fd.append('business_description', form.business_description.trim())
     fd.append('event_id', eventId)
     if (uploadFile) fd.append('image', uploadFile)
@@ -69,7 +68,7 @@ export default function EventRegisterPage() {
         showStatus('error', data.detail || 'Registration failed.')
       } else {
         showStatus('success', `Successfully registered for "${eventName || 'the event'}"! You're all set.`)
-        setForm({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', website: '', business_description: '' })
+        setForm({ name: '', email: '', phone: '', linkedin: '', occupation: '', company: '', industry: '', business_description: '' })
         setPreview(null)
         setUploadFile(null)
       }
@@ -148,12 +147,6 @@ export default function EventRegisterPage() {
               <input name="industry" placeholder="SaaS / Healthcare / Fintech" value={form.industry}
                 onChange={handleField} disabled={submitting} />
             </div>
-          </div>
-
-          <div className="sr-field">
-            <label>Website</label>
-            <input name="website" placeholder="https://yourcompany.com"
-              value={form.website} onChange={handleField} disabled={submitting} />
           </div>
 
           <div className="sr-field">
