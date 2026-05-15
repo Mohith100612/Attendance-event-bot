@@ -8,6 +8,7 @@ from database import get_db
 from image_storage import save_base64_image, save_upload_bytes
 from models import Attendance, AdminSettings, Event, User
 from notifications import send_registration_email
+import search_engine
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -113,6 +114,8 @@ async def signup(
     db.add(user)
     db.commit()
     db.refresh(user)
+
+    background_tasks.add_task(search_engine.bg_upsert, search_engine.user_to_dict(user))
 
     if event_id is not None:
         db.add(Attendance(user_id=user.id, event_id=event_id, status="enrolled"))
