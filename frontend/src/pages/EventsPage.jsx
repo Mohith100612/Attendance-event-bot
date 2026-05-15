@@ -174,9 +174,29 @@ export default function EventsPage() {
   }
 
   function copyText(text, key) {
-    navigator.clipboard.writeText(text)
-    setCopied(key)
-    setTimeout(() => setCopied(null), 1800)
+    const flash = () => {
+      setCopied(key)
+      setTimeout(() => setCopied(null), 1800)
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(flash).catch(() => fallbackCopy(text, flash))
+    } else {
+      fallbackCopy(text, flash)
+    }
+  }
+
+  function fallbackCopy(text, onDone) {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.top = '0'
+    ta.style.left = '0'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    try { document.execCommand('copy'); onDone() } catch {}
+    document.body.removeChild(ta)
   }
 
   return (
@@ -186,15 +206,15 @@ export default function EventsPage() {
         <div className="url-modal-backdrop" onClick={() => setQrModal(null)}>
           <div className="url-modal" onClick={e => e.stopPropagation()}>
             <button className="url-modal-close" onClick={() => setQrModal(null)}>✕</button>
-            <div className="url-modal-title">Scan QR to Register</div>
+            <div className="url-modal-title">Scan QR for Live Display</div>
             <div className="url-modal-event">{qrModal.name}</div>
             <div className="url-modal-qr qr-modal-canvas">
-              <QRCodeCanvas value={qrModal.registerUrl} size={220} level="M" includeMargin={true} />
+              <QRCodeCanvas value={qrModal.displayUrl} size={220} level="M" includeMargin={true} />
             </div>
-            <div className="url-modal-qr-hint">Attendees scan this to register for the event</div>
+            <div className="url-modal-qr-hint">Scan to open the live event display</div>
             <div className="url-modal-btn-row">
-              <button className="url-modal-copy" onClick={() => copyText(qrModal.registerUrl, 'qr-register')}>
-                {copied === 'qr-register' ? 'Copied!' : 'Copy Register URL'}
+              <button className="url-modal-copy" onClick={() => copyText(qrModal.displayUrl, 'qr-display')}>
+                {copied === 'qr-display' ? 'Copied!' : 'Copy Display URL'}
               </button>
               <button className="url-modal-copy url-modal-copy--outline" onClick={() => downloadQR(qrModal.name)}>
                 Download QR
@@ -211,14 +231,14 @@ export default function EventsPage() {
             <div className="url-modal-title">Event Created</div>
             <div className="url-modal-event">{urlModal.name}</div>
 
-            <p className="url-modal-desc" style={{ marginTop: 16 }}>Registration QR code:</p>
+            <p className="url-modal-desc" style={{ marginTop: 16 }}>Live display QR code:</p>
             <div className="url-modal-qr qr-modal-canvas">
-              <QRCodeCanvas value={urlModal.registerUrl} size={180} level="M" includeMargin={true} />
+              <QRCodeCanvas value={urlModal.displayUrl} size={180} level="M" includeMargin={true} />
             </div>
-            <div className="url-modal-qr-hint">Attendees scan this to register for the event</div>
+            <div className="url-modal-qr-hint">Scan to open the live event display</div>
             <div className="url-modal-btn-row">
-              <button className="url-modal-copy" onClick={() => copyText(urlModal.registerUrl, 'modal-register-qr')}>
-                {copied === 'modal-register-qr' ? 'Copied!' : 'Copy Register URL'}
+              <button className="url-modal-copy" onClick={() => copyText(urlModal.displayUrl, 'modal-display-qr')}>
+                {copied === 'modal-display-qr' ? 'Copied!' : 'Copy Display URL'}
               </button>
               <button className="url-modal-copy url-modal-copy--outline" onClick={() => downloadQR(urlModal.name)}>
                 Download QR
@@ -334,7 +354,11 @@ export default function EventsPage() {
                   <div className="ev-card-urls">
                     <button
                       className="ev-url-btn ev-url-btn--qr"
-                      onClick={() => setQrModal({ name: ev.name, registerUrl: `${window.location.origin}/register/${ev.id}` })}
+                      onClick={() => setQrModal({
+                        name: ev.name,
+                        displayUrl: `${window.location.origin}/display/${ev.id}`,
+                        registerUrl: `${window.location.origin}/register/${ev.id}`,
+                      })}
                     >
                       Show QR Code
                     </button>

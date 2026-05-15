@@ -170,6 +170,8 @@ function _scoreParticipant(p, query, tokens) {
   return { score: pct, reason }
 }
 
+const SEARCH_RESULT_LIMIT = 10
+
 function searchLocally(participants, query) {
   if (!query.trim()) return []
   const tokens = _expandTokens(query)
@@ -177,6 +179,17 @@ function searchLocally(participants, query) {
     .map(p => { const { score, reason } = _scoreParticipant(p, query, tokens); return { ...p, score, reason } })
     .filter(p => p.score > 0)
     .sort((a, b) => b.score - a.score)
+    .slice(0, SEARCH_RESULT_LIMIT)
+}
+
+/* Filter remote search hits down to people who are checked in (i.e. in
+   the local `participants` roster) and cap at the top N matches. */
+function pickCheckedInHits(remoteResults, participants) {
+  const byId = new Map(participants.map(p => [String(p.id), p]))
+  return remoteResults
+    .filter(r => byId.has(String(r.id)))
+    .map(r => mergeRemoteResult(r, byId))
+    .slice(0, SEARCH_RESULT_LIMIT)
 }
 
 /* ── Remote search engine (semantic vector search over attendees) ─ */
@@ -288,8 +301,7 @@ function ParticipantSearch({ participants, onClose, onSelect }) {
     setLoading(true)
     searchRemote(q, ctrl.signal)
       .then(arr => {
-        const byId = new Map(participants.map(p => [String(p.id), p]))
-        setResults(arr.map(r => mergeRemoteResult(r, byId)))
+        setResults(pickCheckedInHits(arr, participants))
       })
       .catch((err) => {
         if (err.name === 'AbortError') return
@@ -593,8 +605,7 @@ function ParticipantSwipeView({ participants, startIndex, eventName, onBack }) {
       setSearchLoading(true)
       try {
         const remote = await searchRemote(query, ctrl.signal)
-        const byId = new Map(participants.map(x => [String(x.id), x]))
-        setResults(remote.map(r => mergeRemoteResult(r, byId)))
+        setResults(pickCheckedInHits(remote, participants))
       } catch (err) {
         if (err.name === 'AbortError') return
         setResults(searchLocally(participants, query))

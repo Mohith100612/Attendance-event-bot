@@ -112,6 +112,38 @@ def list_users(db: Session = Depends(get_db)):
     ]
 
 
+@router.post("/users/{user_id}/photo", dependencies=[Depends(require_admin)])
+async def set_user_photo(
+    user_id: int,
+    background_tasks: BackgroundTasks,
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    file_bytes = await image.read()
+    _, filename = save_upload_bytes(file_bytes, image.filename)
+
+    old_url = user.image_url
+    user.image_url = f"/uploads/{filename}"
+    db.commit()
+    db.refresh(user)
+
+    if old_url:
+        old_path = os.path.join(UPLOAD_DIR, os.path.basename(old_url))
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+    background_tasks.add_task(search_engine.bg_upsert, search_engine.user_to_dict(user))
+
+    return {"success": True, "image_url": user.image_url}
+
+
 @router.delete("/users/{user_id}", dependencies=[Depends(require_admin)])
 def delete_user(user_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()

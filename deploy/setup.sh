@@ -20,9 +20,13 @@ PINECONE_INDEX="attendees"
 PINECONE_CLOUD="aws"
 PINECONE_REGION="us-east-1"
 
-# Groq (natural-language query parsing) — leave blank to disable query expansion
+# Groq / Ollama-proxy (natural-language query parsing) — leave GROQ_API_KEY blank to disable
+# Use a Groq cloud key + leave GROQ_BASE_URL blank (defaults to api.groq.com),
+# OR point at your own Ollama-via-nginx proxy and use "user:pass" Basic-auth in GROQ_API_KEY.
 GROQ_API_KEY=""
+GROQ_BASE_URL=""                          # e.g. http://3.109.63.164/v1 — blank uses Groq cloud
 GROQ_MODEL="llama-3.1-8b-instant"
+GROQ_QUERY_EXPANSION="true"
 # ══════════════════════════════════════════════════════════════════════════════
 
 APP_DIR="/opt/face_auth"
@@ -102,7 +106,9 @@ PINECONE_REGION=${PINECONE_REGION}
 
 # Groq query parsing
 GROQ_API_KEY=${GROQ_API_KEY}
+GROQ_BASE_URL=${GROQ_BASE_URL}
 GROQ_MODEL=${GROQ_MODEL}
+GROQ_QUERY_EXPANSION=${GROQ_QUERY_EXPANSION}
 EOF
 chmod 600 "$WORK_DIR/backend/.env"
 

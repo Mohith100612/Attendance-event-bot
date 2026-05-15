@@ -18,6 +18,10 @@ class EventCreate(BaseModel):
     expires_at: str | None = None  # YYYY-MM-DD
 
 
+class BulkEnrollRequest(BaseModel):
+    exclude_event_ids: list[int] = []
+
+
 def _delete_event_cascade(event_id: int, db: Session):
     """Delete an event, its exclusive users (with photos), and all attendance records."""
     only_here = db.execute(text("""
@@ -146,3 +150,58 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
     _delete_event_cascade(event_id, db)
     db.commit()
     return {"success": True}
+
+
+@router.post("/{event_id}/enroll-all-except", dependencies=[Depends(require_admin)])
+def enroll_all_except(event_id: int, body: BulkEnrollRequest, db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found.")
+
+    excluded_user_ids: set[int] = set()
+    if body.exclude_event_ids:
+        rows = db.query(Attendance.user_id).filter(
+            Attendance.event_id.in_(body.exclude_event_ids)
+        ).distinct().all()
+        excluded_user_ids = {r[0] for r in rows}
+
+    already_in_target = {
+        r[0] for r in db.query(Attendance.user_id).filter(Attendance.event_id == event_id).all()
+    }
+    excluded_user_ids |= already_in_target
+
+    candidates = db.query(User).filter(User.role != "admin").all()
+    enrolled = 0
+    for u in candidates:
+        if u.id in excluded_user_ids:
+            continue
+        db.add(Attendance(user_id=u.id, event_id=event_id, status="enrolled"))
+        enrolled += 1
+    if enrolled:
+        db.commit()
+
+    return {
+        "success": True,
+        "enrolled": enrolled,
+        "skipped_already_in_event": len(already_in_target),
+        "skipped_in_excluded_events": len(excluded_user_ids) - len(already_in_target),
+    }
+
+
+@router.delete("/{event_id}/users/{user_id}", dependencies=[Depends(require_admin)])
+def remove_user_from_event(event_id: int, user_id: int, db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found.")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    if user.role == "admin":
+        raise HTTPException(status_code=403, detail="Admin accounts cannot be removed from events.")
+
+    deleted = db.query(Attendance).filter(
+        Attendance.user_id == user_id,
+        Attendance.event_id == event_id,
+    ).delete()
+    db.commit()
+    return {"success": True, "removed": deleted}

@@ -3012,3 +3012,97 @@ html, body, #root {
   color: var(--accent-green);
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Responsive — DisplayPage on phones, tablets, portrait monitors.
+   Big-screen / projector / TV defaults are preserved above; only
+   narrower viewports get these overrides.
+   ────────────────────────────────────────────────────────────── */
+
+/* Tablets and small laptops in landscape (≤1024px) — shrink paddings */
+@media (max-width: 1024px) {
+  .dp-photo-side { padding: 36px; }
+  .dp-photo { width: 220px; height: 220px; }
+  .dp-info-side { padding: 40px 44px; gap: 14px; }
+  .dp-name { font-size: 2.6rem; }
+  .dp-event-name { font-size: 1.1rem; }
+}
+
+/* Phones, small tablets, portrait orientation (≤768px) — stack vertically */
+@media (max-width: 768px) {
+  .dp-card {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .dp-photo-side {
+    width: 100%;
+    padding: 28px 16px 16px;
+    flex-shrink: 0;
+  }
+  .dp-photo,
+  .dp-photo--placeholder {
+    width: 160px;
+    height: 160px;
+    border-width: 4px;
+  }
+  .dp-photo--placeholder { font-size: 3rem; }
+  .dp-info-side {
+    padding: 20px 20px 28px;
+    gap: 12px;
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    text-align: left;
+  }
+  .dp-name {
+    font-size: 1.8rem;
+    line-height: 1.15;
+    letter-spacing: -0.3px;
+    word-break: break-word;
+  }
+  .dp-badge { font-size: 0.78rem; padding: 7px 14px; }
+  .dp-event-name { font-size: 0.95rem; }
+  .dp-time { font-size: 0.85rem; }
+
+  .dp-details { padding-top: 14px; gap: 12px; }
+  .dp-detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .dp-detail-label { width: auto; font-size: 0.65rem; }
+  .dp-detail-value { font-size: 0.92rem; word-break: break-word; }
+
+  /* Swipe view header & nav — keep usable on phones */
+  .dp-swipe-header { padding: 12px 12px; gap: 8px; flex-wrap: wrap; }
+  .dp-swipe-back-btn { padding: 8px 12px; font-size: 0.85rem; }
+  .dp-swipe-search-wrap { padding: 8px 12px; }
+  .dp-swipe-search-input { font-size: 0.9rem; }
+  .dp-swipe-prev-btn,
+  .dp-swipe-next-btn { padding: 9px 14px; font-size: 0.8rem; }
+
+  /* Live check-in popup on phones */
+  .dp-popup { padding: 18px 22px; gap: 12px; max-width: calc(100vw - 32px); }
+  .dp-popup-photo,
+  .dp-popup-avatar { width: 56px; height: 56px; }
+  .dp-popup-name { font-size: 1.05rem; }
+  .dp-popup-sub  { font-size: 0.8rem; }
+
+  /* Idle clock / brand screen */
+  .dp-idle .dp-brand { font-size: 2rem; }
+}
+
+/* Very small phones (≤400px) — even tighter */
+@media (max-width: 400px) {
+  .dp-photo,
+  .dp-photo--placeholder { width: 130px; height: 130px; }
+  .dp-name { font-size: 1.55rem; }
+  .dp-info-side { padding: 16px 14px 24px; }
+  .dp-detail-value { font-size: 0.88rem; }
+}
+
+/* Tall portrait phones — let avatar still feel anchored at top */
+@media (max-width: 768px) and (orientation: portrait) {
+  .dp-photo-side {
+    background: linear-gradient(180deg, #0f1035 0%, #1a1060 100%);
+  }
+}
+

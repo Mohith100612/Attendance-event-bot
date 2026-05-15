@@ -30,7 +30,7 @@ scp -i your-key.pem deploy/setup.sh ubuntu@YOUR_EC2_IP:~/
 # SSH in
 ssh -i your-key.pem ubuntu@YOUR_EC2_IP
 
-# Run (takes ~5-10 minutes — TensorFlow is large)
+# Run (takes ~3-5 minutes — fastembed + onnxruntime download)
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -60,6 +60,7 @@ ssh -i your-key.pem ubuntu@YOUR_EC2_IP
 | Backend won't start | `sudo journalctl -u face-auth -n 50` |
 | Nginx config error | `sudo nginx -t` |
 | Out of memory (OOM) | Edit service file: change `--workers 2` to `--workers 1`, then `sudo systemctl restart face-auth` |
-| DeepFace slow on first request | Normal — model downloads on first start, wait ~2 min |
+| First search request is slow | Normal — FastEmbed downloads the BAAI/bge-small-en-v1.5 model on first init, ~30s |
+| Backend OOM during search | The embedding model needs ~400MB RAM per worker. Drop `--workers 2` to `--workers 1` if t2.medium is tight |
 | CORS error in browser | Check `ALLOW_ORIGINS` in `.env` exactly matches your domain |
 | Certbot failed | Run after DNS propagates: `sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com` |

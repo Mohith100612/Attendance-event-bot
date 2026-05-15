@@ -23,6 +23,12 @@ export default function RegisterPage() {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null)
 
+  const [csvFile, setCsvFile] = useState(null)
+  const [imageFiles, setImageFiles] = useState([])
+  const [csvEvent, setCsvEvent] = useState('')
+  const [csvImporting, setCsvImporting] = useState(false)
+  const [csvResult, setCsvResult] = useState(null)
+
   function handleField(e) {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
   }
@@ -73,6 +79,36 @@ export default function RegisterPage() {
   function showStatus(type, msg) {
     setStatus(type)
     setStatusMsg(msg)
+  }
+
+  async function handleCsvImport() {
+    if (!csvFile) return
+    setCsvImporting(true)
+    setCsvResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('csv_file', csvFile)
+      for (const img of imageFiles) fd.append('images', img)
+      if (csvEvent.trim()) fd.append('event_name', csvEvent.trim())
+
+      const res = await apiFetch('/api/import/csv-upload', { method: 'POST', body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const detail = data?.detail
+        const msg = typeof detail === 'string'
+          ? detail
+          : Array.isArray(detail)
+            ? detail.map(d => `${(d.loc || []).join('.')}: ${d.msg}`).join(' · ')
+            : `HTTP ${res.status}`
+        setCsvResult({ success: false, error: msg })
+      } else {
+        setCsvResult(data)
+      }
+    } catch (e) {
+      setCsvResult({ success: false, error: `Network error: ${e?.message || 'backend not reachable'}` })
+    } finally {
+      setCsvImporting(false)
+    }
   }
 
   async function handleImport() {
@@ -269,6 +305,106 @@ export default function RegisterPage() {
                     <summary>Show skipped ({importResult.errors.length})</summary>
                     <ul>
                       {importResult.errors.map((e, i) => <li key={i}>{e}</li>)}
+                    </ul>
+                  </details>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="sr-card import-card">
+        <div className="sr-header">
+          <h1 className="sr-title">Bulk Import from Local CSV + Images</h1>
+          <p className="sr-sub">
+            Upload a <code>.csv</code> file and the matching photo files together. Existing users
+            (matched by email) keep their data — only missing fields and photos are filled in.
+            New users are created and enrolled in the event below.
+          </p>
+        </div>
+
+        <div className="import-columns-hint">
+          Expected CSV headers (any subset, case-insensitive):
+          <code>full_name &nbsp;|&nbsp; email &nbsp;|&nbsp; phone &nbsp;|&nbsp; company &nbsp;|&nbsp; industry &nbsp;|&nbsp; website &nbsp;|&nbsp; business_description &nbsp;|&nbsp; image_filename</code>
+          <br />
+          The <em>image_filename</em> column should reference one of the photo files you upload
+          (folder prefix like <code>images/</code> is OK — only the file name is used).
+        </div>
+
+        <div className="sr-field">
+          <label>CSV File <span className="req">*</span></label>
+          <input
+            type="file"
+            accept=".csv"
+            disabled={csvImporting}
+            onChange={e => setCsvFile(e.target.files?.[0] || null)}
+          />
+          {csvFile && <span className="sr-hint">Selected: {csvFile.name}</span>}
+        </div>
+
+        <div className="sr-field">
+          <label>Photo Files <span className="sr-hint" style={{ fontWeight: 400 }}>(select all images at once)</span></label>
+          <input
+            type="file"
+            accept="image/*"
+            multiple
+            disabled={csvImporting}
+            onChange={e => setImageFiles(Array.from(e.target.files || []))}
+          />
+          {imageFiles.length > 0 && <span className="sr-hint">{imageFiles.length} image(s) selected</span>}
+        </div>
+
+        <div className="sr-field">
+          <label>Enroll Everyone In Event <span className="sr-hint" style={{ fontWeight: 400 }}>(optional — leave blank to only update profiles)</span></label>
+          <select
+            value={csvEvent}
+            onChange={e => setCsvEvent(e.target.value)}
+            disabled={csvImporting}
+            className="sr-select"
+          >
+            <option value="">— Don't enroll —</option>
+            {events.map(ev => (
+              <option key={ev.id} value={ev.name}>{ev.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          className="sr-submit import-btn"
+          onClick={handleCsvImport}
+          disabled={csvImporting || !csvFile}
+        >
+          {csvImporting ? 'Importing…' : 'Import CSV + Photos'}
+        </button>
+
+        {csvImporting && (
+          <div className="import-progress">
+            Uploading files and processing rows…
+          </div>
+        )}
+
+        {csvResult && (
+          <div className={`import-result ${csvResult.success ? 'success' : 'error'}`}>
+            {!csvResult.success ? (
+              <p>Error: {csvResult.error || 'Import failed.'}</p>
+            ) : (
+              <>
+                <p>
+                  <strong>✓ {csvResult.inserted} new · {csvResult.updated} updated</strong>
+                  {csvResult.enrolled_in_event > 0 && (
+                    <span> &nbsp;·&nbsp; 🎫 {csvResult.enrolled_in_event} enrolled in {csvResult.event_name}</span>
+                  )}
+                  {csvResult.skipped > 0 && <span> &nbsp;·&nbsp; ⚠ {csvResult.skipped} issues</span>}
+                </p>
+                {csvResult.event_created && (
+                  <p>Event created: {csvResult.event_name}</p>
+                )}
+                {csvResult.errors?.length > 0 && (
+                  <details className="import-errors">
+                    <summary>Show issues ({csvResult.errors.length})</summary>
+                    <ul>
+                      {csvResult.errors.map((e, i) => <li key={i}>{e}</li>)}
                     </ul>
                   </details>
                 )}

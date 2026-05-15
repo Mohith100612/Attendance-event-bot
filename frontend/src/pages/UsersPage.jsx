@@ -11,8 +11,68 @@ export default function UsersPage() {
   const [expanded, setExpanded]   = useState(null)
   const [deleting, setDeleting]   = useState(null)
   const [search, setSearch]       = useState('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(null)
+  const [bulkEnrolling, setBulkEnrolling] = useState(false)
 
   useEffect(() => { fetchAll() }, [])
+
+  async function handleBulkEnroll() {
+    if (activeTab === 'all') return
+    const targetEvent = events.find(e => e.id === activeTab)
+    if (!targetEvent) return
+    const otherEventIds = events.filter(e => e.id !== activeTab).map(e => e.id)
+    const otherEventNames = events.filter(e => e.id !== activeTab).map(e => e.name).join(', ') || 'none'
+    if (!window.confirm(
+      `Enroll every non-admin user into "${targetEvent.name}", except people already in: ${otherEventNames}?`
+    )) return
+
+    setBulkEnrolling(true)
+    try {
+      const res = await apiFetch(`/api/events/${activeTab}/enroll-all-except`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exclude_event_ids: otherEventIds }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(`Bulk enroll failed: ${data.detail || res.status}`)
+        return
+      }
+      alert(`Enrolled ${data.enrolled} user(s) in "${targetEvent.name}".`)
+      await fetchAll()
+    } catch (e) {
+      alert(`Network error: ${e?.message || 'backend unreachable'}`)
+    } finally {
+      setBulkEnrolling(false)
+    }
+  }
+
+  async function handlePhotoUpload(user, file) {
+    if (!file) return
+    setUploadingPhoto(user.id)
+    try {
+      const fd = new FormData()
+      fd.append('image', file)
+      const res = await apiFetch(`/api/register/users/${user.id}/photo`, {
+        method: 'POST',
+        body: fd,
+      })
+      if (!res.ok) throw new Error('upload failed')
+      const data = await res.json()
+
+      const apply = (u) => u.id === user.id ? { ...u, image_url: data.image_url } : u
+      setAllUsers(prev => prev.map(apply))
+      setEventUsers(prev => {
+        const updated = { ...prev }
+        for (const eid in updated) updated[eid] = updated[eid].map(apply)
+        return updated
+      })
+    } catch {
+      alert('Failed to upload photo.')
+    } finally {
+      setUploadingPhoto(null)
+    }
+  }
 
   async function fetchAll() {
     setLoading(true)
@@ -43,19 +103,36 @@ export default function UsersPage() {
   }
 
   async function handleDelete(user) {
-    if (!window.confirm(`Delete "${user.name}"? This will also remove their attendance records and photo. This cannot be undone.`)) return
+    const isEventTab = activeTab !== 'all'
+    const eventName = isEventTab ? events.find(e => e.id === activeTab)?.name : null
+
+    const message = isEventTab
+      ? `Remove "${user.name}" from "${eventName}"? Their record stays in the system and in any other events they're in.`
+      : `Delete "${user.name}"? This wipes their record, photo, and attendance across ALL events. This cannot be undone.`
+    if (!window.confirm(message)) return
+
     setDeleting(user.id)
     try {
-      await apiFetch(`/api/register/users/${user.id}`, { method: 'DELETE' })
-      setAllUsers(u => u.filter(x => x.id !== user.id))
-      setEventUsers(prev => {
-        const updated = { ...prev }
-        for (const eid in updated) updated[eid] = updated[eid].filter(x => x.id !== user.id)
-        return updated
-      })
+      if (isEventTab) {
+        const res = await apiFetch(`/api/events/${activeTab}/users/${user.id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('remove failed')
+        setEventUsers(prev => ({
+          ...prev,
+          [activeTab]: (prev[activeTab] || []).filter(x => x.id !== user.id),
+        }))
+      } else {
+        const res = await apiFetch(`/api/register/users/${user.id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error('delete failed')
+        setAllUsers(u => u.filter(x => x.id !== user.id))
+        setEventUsers(prev => {
+          const updated = { ...prev }
+          for (const eid in updated) updated[eid] = updated[eid].filter(x => x.id !== user.id)
+          return updated
+        })
+      }
       if (expanded === user.id) setExpanded(null)
     } catch {
-      alert('Failed to delete user.')
+      alert(isEventTab ? 'Failed to remove user from this event.' : 'Failed to delete user.')
     } finally {
       setDeleting(null)
     }
@@ -90,9 +167,21 @@ export default function UsersPage() {
             </h1>
             <p className="ul-sub">Click a card to see full details or delete a user.</p>
           </div>
-          <button className="change-btn" onClick={fetchAll} disabled={loading}>
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {activeTab !== 'all' && (
+              <button
+                className="change-btn"
+                onClick={handleBulkEnroll}
+                disabled={bulkEnrolling || loading}
+                title="Adds every non-admin user (who isn't already in another event) to this event"
+              >
+                {bulkEnrolling ? 'Enrolling…' : '+ Enroll Everyone Else'}
+              </button>
+            )}
+            <button className="change-btn" onClick={fetchAll} disabled={loading}>
+              {loading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         {/* Event tabs */}
@@ -207,12 +296,43 @@ export default function UsersPage() {
                     )}
 
                     {user.role !== 'admin' && (
+                      <label
+                        className="btn-upload-photo"
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          display: 'inline-block', marginTop: 8, marginRight: 8,
+                          padding: '6px 12px', borderRadius: 6,
+                          background: 'var(--accent, #6c5ce7)', color: '#fff',
+                          fontSize: 13, cursor: uploadingPhoto === user.id ? 'wait' : 'pointer',
+                          opacity: uploadingPhoto === user.id ? 0.6 : 1,
+                        }}
+                      >
+                        {uploadingPhoto === user.id
+                          ? 'Uploading…'
+                          : (user.image_url ? '📷 Change Photo' : '📷 Upload Photo')}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          disabled={uploadingPhoto === user.id}
+                          onChange={e => {
+                            const file = e.target.files?.[0]
+                            e.target.value = ''
+                            handlePhotoUpload(user, file)
+                          }}
+                        />
+                      </label>
+                    )}
+
+                    {user.role !== 'admin' && (
                       <button
                         className="btn-delete-full"
                         disabled={deleting === user.id}
                         onClick={e => { e.stopPropagation(); handleDelete(user) }}
                       >
-                        {deleting === user.id ? 'Deleting...' : '✕ Delete User'}
+                        {deleting === user.id
+                          ? (activeTab === 'all' ? 'Deleting...' : 'Removing...')
+                          : (activeTab === 'all' ? '✕ Delete User' : '✕ Remove from Event')}
                       </button>
                     )}
                   </div>

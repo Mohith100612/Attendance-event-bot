@@ -1,17 +1,21 @@
 import csv
 import io
+import logging
 import os
 import re
 import uuid
+from typing import List, Optional
 
 import requests
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+logger = logging.getLogger(__name__)
+
 from auth import require_admin
 from database import get_db
-from image_storage import UPLOAD_DIR
+from image_storage import UPLOAD_DIR, save_upload_bytes
 from models import Attendance, Event, User
 import search_engine
 
@@ -143,5 +147,187 @@ def import_from_sheet(body: ImportRequest, db: Session = Depends(get_db)):
         "imported": imported,
         "skipped": len(errors),
         "events_created": list(event_cache.keys()),
+        "errors": errors,
+    }
+
+
+def _file_missing_on_disk(image_url: Optional[str]) -> bool:
+    """True if image_url is set but the referenced file is not in UPLOAD_DIR."""
+    if not image_url:
+        return False
+    fname = os.path.basename(image_url)
+    return not os.path.exists(os.path.join(UPLOAD_DIR, fname))
+
+
+def _fill_if_null(obj, **fields) -> bool:
+    """Set attributes on obj only where the current value is falsy. Returns True if anything changed.
+    Special case: image_url is also replaced if the existing file is missing on disk (orphan URL)."""
+    changed = False
+    for k, v in fields.items():
+        if not v:
+            continue
+        current = getattr(obj, k, None)
+        if not current:
+            setattr(obj, k, v)
+            changed = True
+        elif k == "image_url" and _file_missing_on_disk(current):
+            setattr(obj, k, v)
+            changed = True
+    return changed
+
+
+@router.post("/csv-upload", dependencies=[Depends(require_admin)])
+async def import_csv_upload(
+    csv_file: UploadFile = File(...),
+    images: List[UploadFile] = File(...),
+    event_name: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    try:
+        return await _do_csv_upload(csv_file, images, event_name, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("CSV import failed")
+        raise HTTPException(status_code=500, detail=f"Import crashed: {type(e).__name__}: {e}")
+
+
+async def _do_csv_upload(csv_file, images, event_name, db):
+    raw = await csv_file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="CSV file is empty.")
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="CSV has no header row.")
+    raw_fields = reader.fieldnames or []
+    norm = {k: k.strip().lower().replace(" ", "_") for k in raw_fields}
+
+    img_map: dict[str, bytes] = {}
+    for img in images:
+        if not img.filename:
+            continue
+        img_map[os.path.basename(img.filename)] = await img.read()
+
+    event_id: Optional[int] = None
+    event_created = False
+    event_name = (event_name or "").strip()
+    if event_name:
+        ev = db.query(Event).filter(Event.name == event_name).first()
+        if not ev:
+            ev = Event(name=event_name)
+            db.add(ev)
+            db.commit()
+            db.refresh(ev)
+            event_created = True
+        event_id = ev.id
+
+    inserted = 0
+    updated = 0
+    enrolled = 0
+    errors: list[str] = []
+    touched_users: list[dict] = []
+
+    for raw_row in reader:
+        row = {norm[k]: (v or "").strip() for k, v in raw_row.items() if k}
+
+        name = row.get("full_name") or row.get("name") or ""
+        if not name:
+            continue
+        email = (row.get("email") or row.get("gmail") or "").lower() or None
+
+        image_url = None
+        img_ref = row.get("image_filename") or row.get("photo") or row.get("image") or ""
+        if img_ref:
+            img_bytes = img_map.get(os.path.basename(img_ref))
+            if img_bytes:
+                try:
+                    _, saved = save_upload_bytes(img_bytes, os.path.basename(img_ref))
+                    image_url = f"/uploads/{saved}"
+                except Exception as e:
+                    errors.append(f"{name}: failed to save photo — {e}")
+            else:
+                errors.append(f"{name}: image file '{os.path.basename(img_ref)}' not uploaded")
+
+        existing = db.query(User).filter(User.email.ilike(email)).first() if email else None
+
+        if existing:
+            if existing.role == "admin":
+                errors.append(f"{name}: skipped (matches admin account)")
+                continue
+            changed = _fill_if_null(
+                existing,
+                name=name,
+                phone=row.get("phone") or row.get("phone_no") or row.get("phone_number") or None,
+                linkedin=row.get("linkedin") or None,
+                occupation=row.get("occupation") or None,
+                company=row.get("company") or row.get("organization") or None,
+                industry=row.get("industry") or None,
+                website=row.get("website") or None,
+                business_description=(
+                    row.get("business_description")
+                    or row.get("description")
+                    or None
+                ),
+                image_url=image_url,
+            )
+            if changed:
+                db.commit()
+                db.refresh(existing)
+                updated += 1
+            user = existing
+        else:
+            user = User(
+                name=name,
+                email=email,
+                phone=row.get("phone") or row.get("phone_no") or row.get("phone_number") or None,
+                linkedin=row.get("linkedin") or None,
+                occupation=row.get("occupation") or None,
+                company=row.get("company") or row.get("organization") or None,
+                industry=row.get("industry") or None,
+                website=row.get("website") or None,
+                business_description=(
+                    row.get("business_description")
+                    or row.get("description")
+                    or None
+                ),
+                image_url=image_url,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            inserted += 1
+
+        if event_id is not None:
+            existing_att = db.query(Attendance).filter(
+                Attendance.user_id == user.id,
+                Attendance.event_id == event_id,
+            ).first()
+            if not existing_att:
+                db.add(Attendance(user_id=user.id, event_id=event_id, status="enrolled"))
+                db.commit()
+                enrolled += 1
+
+        touched_users.append(search_engine.user_to_dict(user))
+
+    engine = search_engine.get_engine()
+    if engine and touched_users:
+        try:
+            engine.upsert_bulk(touched_users)
+        except Exception as e:
+            errors.append(f"search index sync failed: {e}")
+
+    return {
+        "success": True,
+        "inserted": inserted,
+        "updated": updated,
+        "enrolled_in_event": enrolled,
+        "event_created": event_created,
+        "event_name": event_name or None,
+        "skipped": len(errors),
         "errors": errors,
     }
