@@ -40,11 +40,14 @@ function IdleScreen({ connected, eventName }) {
 }
 
 /* ── Face-scan result card ──────────────────────────────────────── */
-function DetailRow({ label, value }) {
+function DetailRow({ icon, label, value }) {
   if (!value) return null
   return (
     <div className="dp-detail-row">
-      <span className="dp-detail-label">{label}</span>
+      <div className="dp-detail-head">
+        {icon && <span className="dp-detail-icon" aria-hidden="true">{icon}</span>}
+        <span className="dp-detail-label">{label}</span>
+      </div>
       <span className="dp-detail-value">{value}</span>
     </div>
   )
@@ -66,25 +69,36 @@ function PersonCard({ data }) {
       </div>
       <div className="dp-info-side">
         <div className="dp-name">{user.name}</div>
-        {isNotEnrolled ? (
-          <div className="dp-badge dp-badge--warn">⚠ Not Enrolled for This Event</div>
-        ) : checkedIn ? (
-          <div className="dp-badge dp-badge--already">✓ Already Checked In</div>
-        ) : (
-          <div className="dp-badge dp-badge--present">✓ Checked In</div>
-        )}
-        {event_name && <div className="dp-event-name">◆ {event_name}</div>}
-        <div className="dp-time">{time}</div>
+
+        <div className="dp-meta-row">
+          {isNotEnrolled ? (
+            <div className="dp-badge dp-badge--warn">⚠ Not Enrolled for This Event</div>
+          ) : checkedIn ? (
+            <div className="dp-badge dp-badge--already">✓ Already Checked In</div>
+          ) : (
+            <div className="dp-badge dp-badge--present">✓ Checked In</div>
+          )}
+          {event_name && <span className="dp-event-name">{event_name}</span>}
+          <span className="dp-time">{time}</span>
+        </div>
+
         {!isNotEnrolled && (
           <div className="dp-details">
-            <DetailRow label="Email"       value={user.email} />
-            <DetailRow label="Phone"       value={user.phone} />
-            <DetailRow label="Occupation"  value={user.occupation} />
-            <DetailRow label="Company"     value={user.company} />
-            <DetailRow label="LinkedIn"    value={user.linkedin} />
-            <DetailRow label="About"       value={user.business_description} />
+            <DetailRow icon="✉"  label="Email"      value={user.email} />
+            <DetailRow icon="📞" label="Phone"      value={user.phone} />
+            <DetailRow icon="💼" label="Occupation" value={user.occupation} />
+            <DetailRow icon="🏢" label="Company"    value={user.company} />
+            <DetailRow icon="🔗" label="LinkedIn"   value={user.linkedin} />
           </div>
         )}
+
+        {!isNotEnrolled && user.business_description && (
+          <div className="dp-about-card">
+            <div className="dp-about-label">About</div>
+            <p className="dp-about-text">{user.business_description}</p>
+          </div>
+        )}
+
         {isNotEnrolled && (
           <p className="dp-not-enrolled-msg">
             Please go to the Spotregister desk to register for this event.
@@ -752,7 +766,7 @@ function ParticipantSwipeView({ participants, startIndex, eventName, onBack }) {
             disabled={index === 0 || isFlipping}
           >← Previous</button>
           <div className="dp-swipe-nav-counter">
-            {index + 1} / {participants.length}
+            {index + 1} <span className="dp-swipe-nav-dot">·</span> {participants.length}
           </div>
           <button
             className="dp-part-nav-btn dp-swipe-next-btn"

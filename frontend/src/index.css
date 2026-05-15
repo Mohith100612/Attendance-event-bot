@@ -1086,17 +1086,24 @@ html, body, #root {
   position: relative;
   animation: dp-fadein 0.45s cubic-bezier(0.22,1,0.36,1);
   overflow: hidden;
+  background: var(--bg);
 }
 @keyframes dp-fadein {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.dp-card--warn .dp-photo-side { background: linear-gradient(135deg, #1a0f00, #2a1500); }
+.dp-card--warn .dp-photo-side {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(245,158,11,0.28) 0%, transparent 62%),
+    linear-gradient(150deg, #1a0f00, #2a1500);
+}
 .dp-card--warn .dp-photo      { border-color: #f59e0b; box-shadow: 0 0 60px rgba(245,158,11,0.3); }
 
 .dp-photo-side {
   width: 42%;
-  background: linear-gradient(150deg, #0f1035 0%, #1a1060 100%);
+  background:
+    radial-gradient(circle at 50% 42%, rgba(108,99,255,0.32) 0%, transparent 62%),
+    linear-gradient(150deg, #0f1035 0%, #14104a 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1108,22 +1115,29 @@ html, body, #root {
   height: 280px;
   border-radius: 50%;
   object-fit: cover;
-  border: 5px solid var(--accent);
-  box-shadow: 0 0 60px rgba(108,99,255,0.45), 0 0 120px rgba(108,99,255,0.15);
+  border: 4px solid var(--accent);
+  box-shadow:
+    0 0 0 10px rgba(108,99,255,0.10),
+    0 0 60px rgba(108,99,255,0.45),
+    0 0 120px rgba(108,99,255,0.15);
 }
 .dp-photo--placeholder {
-  background: var(--surface2);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(140,130,255,0.55) 0%, rgba(108,99,255,0.18) 45%, var(--surface2) 80%);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 5rem;
-  font-weight: 700;
-  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 2px 24px rgba(108,99,255,0.55);
 }
 
 .dp-info-side {
   flex: 1;
-  background: #0b0b20;
+  background:
+    linear-gradient(180deg, #0b0b20 0%, #0a0a1c 100%);
   padding: 60px 64px;
   display: flex;
   flex-direction: column;
@@ -1137,6 +1151,34 @@ html, body, #root {
   color: #fff;
   line-height: 1.08;
   letter-spacing: -1px;
+  background: linear-gradient(180deg, #ffffff 0%, #e2def5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Unified meta row: status pill · event · time */
+.dp-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-top: -4px;
+}
+.dp-meta-row .dp-event-name,
+.dp-meta-row .dp-time {
+  display: inline-flex;
+  align-items: center;
+}
+.dp-meta-row .dp-event-name::before,
+.dp-meta-row .dp-time::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.28);
+  margin-right: 14px;
+  flex-shrink: 0;
 }
 .dp-badge {
   display: inline-flex;
@@ -1316,27 +1358,65 @@ html, body, #root {
 .dp-details {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0;
   margin-top: 6px;
-  padding-top: 18px;
+  padding-top: 4px;
   border-top: 1px solid rgba(255,255,255,0.07);
 }
 .dp-detail-row {
   display: flex;
   align-items: baseline;
   gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.dp-detail-row:first-child { border-top: none; }
+.dp-detail-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  width: 110px;
+  flex-shrink: 0;
+}
+.dp-detail-icon {
+  font-size: 0.95rem;
+  opacity: 0.75;
+  line-height: 1;
 }
 .dp-detail-label {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: rgba(255,255,255,0.3);
-  width: 90px;
-  flex-shrink: 0;
+  color: rgba(255,255,255,0.4);
 }
 .dp-detail-value {
   font-size: 1rem;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.88);
+  word-break: break-word;
+}
+
+/* About — anchored card with left accent bar */
+.dp-about-card {
+  position: relative;
+  background: rgba(108,99,255,0.05);
+  border-left: 3px solid rgba(108,99,255,0.6);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 2px;
+}
+.dp-about-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: rgba(255,255,255,0.45);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.dp-about-text {
+  font-size: 0.98rem;
+  color: rgba(255,255,255,0.86);
+  line-height: 1.55;
+  margin: 0;
   word-break: break-word;
 }
 .dp-not-enrolled-msg {
@@ -2667,7 +2747,9 @@ html, body, #root {
 .dp-swipe-view {
   position: absolute;
   inset: 0;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(108,99,255,0.10) 0%, transparent 60%),
+    var(--bg);
   display: flex;
   flex-direction: column;
   z-index: 30;
@@ -2717,6 +2799,7 @@ html, body, #root {
 }
 .dp-swipe-search-wrap:focus-within {
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(108,99,255,0.22);
 }
 .dp-swipe-search-input {
   flex: 1;
@@ -3039,41 +3122,59 @@ html, body, #root {
   }
   .dp-photo-side {
     width: 100%;
-    padding: 28px 16px 16px;
+    padding: 36px 16px 10px;
     flex-shrink: 0;
+    background:
+      radial-gradient(ellipse 70% 80% at 50% 40%, rgba(108,99,255,0.22) 0%, transparent 70%),
+      transparent;
   }
   .dp-photo,
   .dp-photo--placeholder {
-    width: 160px;
-    height: 160px;
-    border-width: 4px;
+    width: 168px;
+    height: 168px;
+    border-width: 3px;
+    box-shadow:
+      0 0 0 7px rgba(108,99,255,0.13),
+      0 0 50px rgba(108,99,255,0.40),
+      0 0 100px rgba(108,99,255,0.12);
   }
-  .dp-photo--placeholder { font-size: 3rem; }
+  .dp-photo--placeholder { font-size: 3.2rem; }
   .dp-info-side {
-    padding: 20px 20px 28px;
-    gap: 12px;
+    padding: 18px 20px 28px;
+    gap: 14px;
     border-left: none;
     border-top: 1px solid rgba(255,255,255,0.06);
     text-align: left;
   }
   .dp-name {
-    font-size: 1.8rem;
+    font-size: 1.7rem;
     line-height: 1.15;
-    letter-spacing: -0.3px;
+    letter-spacing: -0.02em;
     word-break: break-word;
   }
-  .dp-badge { font-size: 0.78rem; padding: 7px 14px; }
-  .dp-event-name { font-size: 0.95rem; }
-  .dp-time { font-size: 0.85rem; }
+  .dp-badge { font-size: 0.72rem; padding: 6px 13px; }
+  .dp-event-name { font-size: 0.85rem; }
+  .dp-time { font-size: 0.82rem; }
 
-  .dp-details { padding-top: 14px; gap: 12px; }
+  .dp-meta-row { gap: 6px 12px; }
+  .dp-meta-row .dp-event-name::before,
+  .dp-meta-row .dp-time::before { margin-right: 12px; }
+
+  .dp-details { padding-top: 6px; gap: 0; }
   .dp-detail-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 4px;
+    gap: 3px;
+    padding: 10px 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
   }
+  .dp-detail-head { width: auto; gap: 7px; }
   .dp-detail-label { width: auto; font-size: 0.65rem; }
-  .dp-detail-value { font-size: 0.92rem; word-break: break-word; }
+  .dp-detail-icon { font-size: 0.9rem; }
+  .dp-detail-value { font-size: 0.95rem; color: rgba(255,255,255,0.92); word-break: break-word; }
+
+  .dp-about-card { padding: 12px 14px; margin-top: 4px; }
+  .dp-about-text { font-size: 0.93rem; line-height: 1.55; }
 
   /* Header: keep back-button + search on a single row on phones.
      The page counter (redundant with the one in the bottom bar) is
@@ -3107,6 +3208,11 @@ html, body, #root {
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     color: rgba(255, 255, 255, 0.72);
+    gap: 6px;
+  }
+  .dp-swipe-nav-dot {
+    color: rgba(255,255,255,0.32);
+    font-weight: 400;
   }
   .dp-swipe-prev-btn,
   .dp-swipe-next-btn {
@@ -3114,6 +3220,16 @@ html, body, #root {
     padding: 11px 12px;
     font-size: 0.85rem;
     box-shadow: none;
+    background: rgba(108,99,255,0.16);
+    border: 1px solid rgba(108,99,255,0.35);
+    color: var(--text);
+  }
+  .dp-swipe-prev-btn:disabled,
+  .dp-swipe-next-btn:disabled {
+    background: rgba(108,99,255,0.05);
+    border-color: rgba(108,99,255,0.15);
+    color: rgba(255,255,255,0.28);
+    cursor: not-allowed;
   }
 
   /* Live check-in popup on phones */
@@ -3130,10 +3246,21 @@ html, body, #root {
 /* Very small phones (≤400px) — even tighter */
 @media (max-width: 400px) {
   .dp-photo,
-  .dp-photo--placeholder { width: 130px; height: 130px; }
+  .dp-photo--placeholder { width: 140px; height: 140px; }
   .dp-name { font-size: 1.55rem; }
   .dp-info-side { padding: 16px 14px 24px; }
-  .dp-detail-value { font-size: 0.88rem; }
+  .dp-detail-value { font-size: 0.9rem; }
+  .dp-about-text { font-size: 0.9rem; }
+  .dp-swipe-back-btn {
+    padding: 8px 10px;
+    font-size: 0;
+    line-height: 1;
+  }
+  .dp-swipe-back-btn::before {
+    content: "←";
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
 }
 
 /* Tall portrait phones — let avatar still feel anchored at top */
