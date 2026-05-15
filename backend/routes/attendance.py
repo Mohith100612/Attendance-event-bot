@@ -20,6 +20,11 @@ class CheckInRequest(BaseModel):
     check_in_type: Literal["virtual", "in_person"]
 
 
+class CheckOutRequest(BaseModel):
+    user_id: int
+    event_id: int
+
+
 @router.post("/checkin", dependencies=[Depends(require_admin)])
 def check_in(body: CheckInRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == body.user_id).first()
@@ -81,13 +86,41 @@ def check_in(body: CheckInRequest, db: Session = Depends(get_db)):
     }
 
 
+@router.post("/checkout", dependencies=[Depends(require_admin)])
+def check_out(body: CheckOutRequest, db: Session = Depends(get_db)):
+    record = (
+        db.query(Attendance)
+        .filter(Attendance.user_id == body.user_id, Attendance.event_id == body.event_id)
+        .first()
+    )
+    if not record:
+        raise HTTPException(status_code=404, detail="Attendance record not found.")
+    if record.status != "present":
+        raise HTTPException(status_code=400, detail="User has not checked in yet.")
+    if record.checked_out_at is not None:
+        raise HTTPException(status_code=400, detail="User has already checked out.")
+
+    now = datetime.utcnow()
+    record.status = "checked_out"
+    record.checked_out_at = now
+    db.commit()
+    db.refresh(record)
+
+    return {
+        "user_id": record.user_id,
+        "event_id": record.event_id,
+        "status": record.status,
+        "checked_out_at": record.checked_out_at,
+    }
+
+
 @router.get("/roster", dependencies=[Depends(require_admin)])
 def roster(event_id: int, db: Session = Depends(get_db)):
     """All users enrolled in (or already checked into) the given event."""
     rows = db.execute(
         text("""
             SELECT u.id, u.name, u.email, u.image_url, u.occupation,
-                   a.status, a.check_in_type, a.timestamp
+                   a.status, a.check_in_type, a.timestamp, a.checked_out_at
             FROM attendance a
             JOIN users u ON u.id = a.user_id
             WHERE a.event_id = :eid
@@ -106,6 +139,7 @@ def roster(event_id: int, db: Session = Depends(get_db)):
             "status": r.status,
             "check_in_type": r.check_in_type,
             "timestamp": r.timestamp,
+            "checked_out_at": r.checked_out_at,
         }
         for r in rows
     ]

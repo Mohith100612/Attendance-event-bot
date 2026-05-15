@@ -53,6 +53,7 @@ class Attendance(Base):
     status = Column(String(50), default="present")
     check_in_type = Column(String(20), nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
+    checked_out_at = Column(DateTime, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("user_id", "event_id", name="uq_attendance_user_event"),
